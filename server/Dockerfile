@@ -4,8 +4,14 @@ WORKDIR /app
 
 # Install dependencies for MCP servers
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    ca-certificates \
     python3 \
+    python3-pip \
     && rm -rf /var/lib/apt/lists/*
+
+# Install uv (provides uvx for MCP server executables)
+RUN pip3 install --no-cache-dir uv
 
 # Copy package files
 COPY package*.json ./
