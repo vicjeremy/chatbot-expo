@@ -1,0 +1,22 @@
+{
+  "name": "chatbot-expo-server",
+  "version": "1.0.0",
+  "description": "Backend server for Chatbot Expo with dual MCP integration and Google Gemini AI",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js"
+  },
+  "dependencies": {
+    "ollama": "^0.5.0",
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.5.0",
+    "helmet": "^8.0.0",
+    "uuid": "^11.1.0",
+    "xss": "^1.0.15"
+  }
+}
