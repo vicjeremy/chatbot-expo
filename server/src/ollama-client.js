@@ -1,6 +1,8 @@
-import { Ollama } from 'ollama';
+import { Ollama } from "ollama";
 import { getOllamaTools } from "./tools.js";
 import { mcpManager } from "./mcp-client.js";
+
+const SUPPORTED_PROVIDERS = ["ollama", "gemini", "groq"];
 
 const SYSTEM_PROMPT = `You are a helpful AI research assistant embedded in a chatbot app. You have access to the following capabilities:
 
@@ -14,22 +16,47 @@ const SYSTEM_PROMPT = `You are a helpful AI research assistant embedded in a cha
 - Always be concise, helpful, and friendly.
 - When saving notes from fetched web pages, include the source URL.
 - Format responses with markdown for readability.
-- If a tool call fails, explain the error clearly and suggest alternatives.`;
+- If a tool call fails, explain the error clearly and suggest alternatives.
+- CRITICAL: Once you receive tool output, you MUST provide a final textual answer to the user summarizing the result. Do not call the same tool again in a loop!`;
 
-class OllamaClient {
+class AIClient {
   constructor() {
     const host = process.env.OLLAMA_HOST || "http://localhost:11434";
-    this.model = process.env.OLLAMA_MODEL || "llama3.2";
-    
+    this.defaultProvider = this.normalizeProvider(process.env.AI_PROVIDER);
+
+    this.models = {
+      ollama: process.env.OLLAMA_MODEL || "llama3.2",
+      gemini: process.env.GEMINI_MODEL || "gemini-2.0-flash",
+      groq: process.env.GROQ_MODEL || "llama-3.1-8b-instant",
+    };
+
+    this.keys = {
+      gemini: process.env.GEMINI_API_KEY,
+      groq: process.env.GROQ_API_KEY,
+    };
+
+    this.baseUrls = {
+      gemini:
+        process.env.GEMINI_BASE_URL ||
+        "https://generativelanguage.googleapis.com/v1beta/openai",
+      groq: process.env.GROQ_BASE_URL || "https://api.groq.com/openai/v1",
+    };
+
     // Create a configured Ollama instance
     this.ollama = new Ollama({ host });
   }
 
-  async chat(userMessage, history = []) {
-    // Convert history to Ollama format
-    const messages = [
-      { role: "system", content: SYSTEM_PROMPT }
-    ];
+  normalizeProvider(provider) {
+    const normalized = (provider || "ollama").toLowerCase().trim();
+    return SUPPORTED_PROVIDERS.includes(normalized) ? normalized : "ollama";
+  }
+
+  getDefaultProvider() {
+    return this.defaultProvider;
+  }
+
+  buildMessages(userMessage, history = []) {
+    const messages = [{ role: "system", content: SYSTEM_PROMPT }];
 
     history.forEach((msg) => {
       messages.push({
@@ -39,13 +66,133 @@ class OllamaClient {
     });
 
     messages.push({ role: "user", content: userMessage });
+    return messages;
+  }
+
+  parseToolArgs(rawArgs) {
+    if (!rawArgs) return {};
+    if (typeof rawArgs === "object") return rawArgs;
+
+    if (typeof rawArgs === "string") {
+      try {
+        const parsed = JSON.parse(rawArgs);
+        return typeof parsed === "object" && parsed !== null ? parsed : {};
+      } catch {
+        return {};
+      }
+    }
+
+    return {};
+  }
+
+  toToolContent(result) {
+    if (typeof result === "string") return result;
+    try {
+      return JSON.stringify(result);
+    } catch {
+      return String(result);
+    }
+  }
+
+  async executeToolCalls(toolCalls, messages, provider = "ollama") {
+    for (const tool of toolCalls) {
+      const name = tool?.function?.name;
+      const args = this.parseToolArgs(tool?.function?.arguments);
+
+      if (!name) {
+        continue;
+      }
+
+      console.log(`🔧 Tool call: ${name}(${JSON.stringify(args)})`);
+
+      let toolResult;
+      try {
+        toolResult = await mcpManager.executeTool(name, args || {});
+      } catch (err) {
+        console.error(`❌ Tool error (${name}):`, err.message);
+        toolResult = JSON.stringify({ error: err.message });
+      }
+
+      const toolContent = this.toToolContent(toolResult);
+      console.log(
+        `✅ Tool result (${name}): ${toolContent.substring(0, 200)}...`,
+      );
+
+      if (provider === "ollama") {
+        messages.push({
+          role: "tool",
+          name,
+          tool_name: name,
+          content: toolContent,
+          tool_call_id: tool?.id,
+        });
+      } else {
+        messages.push({
+          role: "tool",
+          content: toolContent,
+          tool_call_id: tool?.id,
+        });
+      }
+    }
+  }
+
+  async chatWithRuntimeConfig(
+    userMessage,
+    history = [],
+    provider,
+    runtimeConfig = {},
+  ) {
+    if (provider === "ollama") {
+      const model = runtimeConfig.ollamaModel || this.models.ollama;
+      return this.chatWithOllama(userMessage, history, model);
+    }
+
+    if (provider === "gemini") {
+      return this.chatWithOpenAICompatible(
+        {
+          provider,
+          baseUrl: runtimeConfig.geminiBaseUrl || this.baseUrls.gemini,
+          apiKey: runtimeConfig.geminiApiKey || this.keys.gemini,
+          model: runtimeConfig.geminiModel || this.models.gemini,
+        },
+        userMessage,
+        history,
+      );
+    }
+
+    return this.chatWithOpenAICompatible(
+      {
+        provider,
+        baseUrl: runtimeConfig.groqBaseUrl || this.baseUrls.groq,
+        apiKey: runtimeConfig.groqApiKey || this.keys.groq,
+        model: runtimeConfig.groqModel || this.models.groq,
+      },
+      userMessage,
+      history,
+    );
+  }
+
+  async chat(userMessage, history = [], providerOverride, runtimeConfig = {}) {
+    const provider = this.normalizeProvider(
+      providerOverride || this.defaultProvider,
+    );
+    return this.chatWithRuntimeConfig(
+      userMessage,
+      history,
+      provider,
+      runtimeConfig,
+    );
+  }
+
+  async chatWithOllama(userMessage, history = [], model) {
+    const messages = this.buildMessages(userMessage, history);
 
     const maxIterations = 5;
     let iteration = 0;
 
     while (iteration < maxIterations) {
       const response = await this.ollama.chat({
-        model: this.model,
+        model,
         messages: messages,
         tools: getOllamaTools(),
       });
@@ -54,31 +201,38 @@ class OllamaClient {
       messages.push(response.message);
 
       // Check if the model decided to call tools
-      if (!response.message.tool_calls || response.message.tool_calls.length === 0) {
+      if (
+        !response.message.tool_calls ||
+        response.message.tool_calls.length === 0
+      ) {
         // Return the final text if no tools were called
-        return response.message.content || "I processed your request but have no additional response.";
+        return (
+          response.message.content ||
+          "I processed your request but have no additional response."
+        );
       }
 
-      // Execute each tool call
-      for (const tool of response.message.tool_calls) {
-        const { name, arguments: args } = tool.function;
-        console.log(`🔧 Tool call: ${name}(${JSON.stringify(args)})`);
+      await this.executeToolCalls(
+        response.message.tool_calls,
+        messages,
+        "ollama",
+      );
 
-        let toolResult;
-        try {
-          toolResult = await mcpManager.executeTool(name, args || {});
-        } catch (err) {
-          console.error(`❌ Tool error (${name}):`, err.message);
-          toolResult = JSON.stringify({ error: err.message });
-        }
+      // Force a final response without tool declarations to prevent tool-call loops.
+      const finalResponse = await this.ollama.chat({
+        model,
+        messages: [
+          ...messages,
+          {
+            role: "user",
+            content:
+              "Use the tool results above to answer my original request now. Do not call tools again.",
+          },
+        ],
+      });
 
-        console.log(`✅ Tool result (${name}): ${toolResult.substring(0, 200)}...`);
-
-        // Add the tool result back into the message history so the model sees it
-        messages.push({
-          role: "tool",
-          content: toolResult,
-        });
+      if (finalResponse?.message?.content) {
+        return finalResponse.message.content;
       }
 
       iteration++;
@@ -86,13 +240,112 @@ class OllamaClient {
 
     return "I reached the maximum number of tool executions and couldn't complete your request.";
   }
-}
 
-let ollamaClient = null;
+  async chatWithOpenAICompatible(config, userMessage, history = []) {
+    if (!config.apiKey) {
+      throw new Error(
+        `Missing API key for provider '${config.provider}'. Set ${config.provider.toUpperCase()}_API_KEY in server/.env or provide it in frontend settings.`,
+      );
+    }
 
-export function getOllamaClient() {
-  if (!ollamaClient) {
-    ollamaClient = new OllamaClient();
+    const messages = this.buildMessages(userMessage, history);
+    const maxIterations = 5;
+    let iteration = 0;
+
+    while (iteration < maxIterations) {
+      const response = await this.callOpenAICompatible(config, messages, true);
+      const assistantMessage = response?.choices?.[0]?.message;
+
+      if (!assistantMessage) {
+        return "I processed your request but received an empty response from the AI provider.";
+      }
+
+      messages.push({
+        role: "assistant",
+        content: assistantMessage.content || "",
+        tool_calls: assistantMessage.tool_calls,
+      });
+
+      if (
+        !assistantMessage.tool_calls ||
+        assistantMessage.tool_calls.length === 0
+      ) {
+        return (
+          assistantMessage.content ||
+          "I processed your request but have no additional response."
+        );
+      }
+
+      await this.executeToolCalls(
+        assistantMessage.tool_calls,
+        messages,
+        config.provider,
+      );
+
+      const finalResponse = await this.callOpenAICompatible(
+        config,
+        [
+          ...messages,
+          {
+            role: "user",
+            content:
+              "Use the tool results above to answer my original request now. Do not call tools again.",
+          },
+        ],
+        false,
+      );
+
+      const finalMessage = finalResponse?.choices?.[0]?.message;
+      if (finalMessage?.content) {
+        return finalMessage.content;
+      }
+
+      iteration++;
+    }
+
+    return "I reached the maximum number of tool executions and couldn't complete your request.";
   }
-  return ollamaClient;
+
+  async callOpenAICompatible(config, messages, includeTools) {
+    const payload = {
+      model: config.model,
+      messages,
+      temperature: 0.4,
+    };
+
+    if (includeTools) {
+      payload.tools = getOllamaTools();
+      payload.tool_choice = "auto";
+    }
+
+    const response = await fetch(`${config.baseUrl}/chat/completions`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${config.apiKey}`,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(
+        `${config.provider} API error ${response.status}: ${errorText.substring(0, 250)}`,
+      );
+    }
+
+    return response.json();
+  }
 }
+
+let aiClient = null;
+
+export function getAIClient() {
+  if (!aiClient) {
+    aiClient = new AIClient();
+  }
+  return aiClient;
+}
+
+// Backward-compatible export for existing imports.
+export const getOllamaClient = getAIClient;

@@ -1,6 +1,6 @@
 // API service — connects Expo app to the Node.js backend
 // Change BASE_URL to your deployed server URL for production
-const BASE_URL = "http://localhost:3001";
+const BASE_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:3001";
 
 class ApiService {
   constructor() {
@@ -11,11 +11,16 @@ class ApiService {
     this.baseUrl = url;
   }
 
-  async sendMessage(message, history = []) {
+  async sendMessage(
+    message,
+    history = [],
+    provider = "ollama",
+    providerConfig = {},
+  ) {
     const response = await fetch(`${this.baseUrl}/api/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message, history }),
+      body: JSON.stringify({ message, history, provider, providerConfig }),
     });
 
     if (!response.ok) {

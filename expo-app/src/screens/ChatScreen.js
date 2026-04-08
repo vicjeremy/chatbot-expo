@@ -8,7 +8,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
-  Animated,
+  Modal,
 } from "react-native";
 import { theme } from "../theme";
 
@@ -25,12 +25,31 @@ const WELCOME_MESSAGE = {
   timestamp: new Date().toISOString(),
 };
 
+const PROVIDERS = [
+  { key: "ollama", label: "Ollama" },
+  { key: "gemini", label: "Gemini" },
+  { key: "groq", label: "Groq" },
+];
+
 export default function ChatScreen() {
   const [messages, setMessages] = useState([WELCOME_MESSAGE]);
   const [inputText, setInputText] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedProvider, setSelectedProvider] = useState("ollama");
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [providerConfig, setProviderConfig] = useState({
+    geminiApiKey: "",
+    groqApiKey: "",
+    ollamaModel: "",
+    geminiModel: "",
+    groqModel: "",
+  });
   const flatListRef = useRef(null);
   const insets = useSafeAreaInsets();
+
+  const updateProviderConfig = useCallback((key, value) => {
+    setProviderConfig((prev) => ({ ...prev, [key]: value }));
+  }, []);
 
   const sendMessage = useCallback(async () => {
     const text = inputText.trim();
@@ -54,7 +73,12 @@ export default function ChatScreen() {
         .map((m) => ({ role: m.role, content: m.content }));
       history.push({ role: "user", content: text });
 
-      const data = await api.sendMessage(text, history);
+      const data = await api.sendMessage(
+        text,
+        history,
+        selectedProvider,
+        providerConfig,
+      );
 
       const aiMessage = {
         id: (Date.now() + 1).toString(),
@@ -75,7 +99,7 @@ export default function ChatScreen() {
     } finally {
       setIsLoading(false);
     }
-  }, [inputText, isLoading, messages]);
+  }, [inputText, isLoading, messages, providerConfig, selectedProvider]);
 
   const renderItem = useCallback(
     ({ item }) => <MessageBubble message={item} />,
@@ -108,7 +132,142 @@ export default function ChatScreen() {
             </View>
           </View>
         </View>
+        <View style={styles.providerRow}>
+          {PROVIDERS.map((provider) => {
+            const selected = provider.key === selectedProvider;
+            return (
+              <TouchableOpacity
+                key={provider.key}
+                style={[
+                  styles.providerChip,
+                  selected && styles.providerChipSelected,
+                ]}
+                onPress={() => setSelectedProvider(provider.key)}
+                disabled={isLoading}
+                activeOpacity={0.8}
+              >
+                <Text
+                  style={[
+                    styles.providerChipText,
+                    selected && styles.providerChipTextSelected,
+                  ]}
+                >
+                  {provider.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+          <TouchableOpacity
+            style={styles.settingsChip}
+            onPress={() => setIsSettingsOpen(true)}
+            disabled={isLoading}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.settingsChipText}>Settings</Text>
+          </TouchableOpacity>
+        </View>
       </View>
+
+      <Modal
+        visible={isSettingsOpen}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setIsSettingsOpen(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Provider Settings</Text>
+            <Text style={styles.modalSubtitle}>
+              Enter keys and model names here instead of editing server env
+              files.
+            </Text>
+
+            <Text style={styles.fieldLabel}>Ollama Model (optional)</Text>
+            <TextInput
+              style={styles.fieldInput}
+              value={providerConfig.ollamaModel}
+              onChangeText={(value) =>
+                updateProviderConfig("ollamaModel", value)
+              }
+              placeholder="qwen3.5:4b"
+              placeholderTextColor={theme.colors.textMuted}
+            />
+
+            <Text style={styles.fieldLabel}>Gemini API Key</Text>
+            <TextInput
+              style={styles.fieldInput}
+              value={providerConfig.geminiApiKey}
+              onChangeText={(value) =>
+                updateProviderConfig("geminiApiKey", value)
+              }
+              placeholder="AIza..."
+              placeholderTextColor={theme.colors.textMuted}
+              autoCapitalize="none"
+              secureTextEntry
+            />
+
+            <Text style={styles.fieldLabel}>Gemini Model (optional)</Text>
+            <TextInput
+              style={styles.fieldInput}
+              value={providerConfig.geminiModel}
+              onChangeText={(value) =>
+                updateProviderConfig("geminiModel", value)
+              }
+              placeholder="gemini-2.0-flash"
+              placeholderTextColor={theme.colors.textMuted}
+              autoCapitalize="none"
+            />
+
+            <Text style={styles.fieldLabel}>Groq API Key</Text>
+            <TextInput
+              style={styles.fieldInput}
+              value={providerConfig.groqApiKey}
+              onChangeText={(value) =>
+                updateProviderConfig("groqApiKey", value)
+              }
+              placeholder="gsk_..."
+              placeholderTextColor={theme.colors.textMuted}
+              autoCapitalize="none"
+              secureTextEntry
+            />
+
+            <Text style={styles.fieldLabel}>Groq Model (optional)</Text>
+            <TextInput
+              style={styles.fieldInput}
+              value={providerConfig.groqModel}
+              onChangeText={(value) => updateProviderConfig("groqModel", value)}
+              placeholder="llama-3.1-8b-instant"
+              placeholderTextColor={theme.colors.textMuted}
+              autoCapitalize="none"
+            />
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={styles.modalSecondaryButton}
+                onPress={() =>
+                  setProviderConfig({
+                    geminiApiKey: "",
+                    groqApiKey: "",
+                    ollamaModel: "",
+                    geminiModel: "",
+                    groqModel: "",
+                  })
+                }
+                activeOpacity={0.8}
+              >
+                <Text style={styles.modalSecondaryButtonText}>Clear</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.modalPrimaryButton}
+                onPress={() => setIsSettingsOpen(false)}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.modalPrimaryButtonText}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* Messages */}
       <FlatList
@@ -143,7 +302,20 @@ export default function ChatScreen() {
               placeholderTextColor={theme.colors.textMuted}
               multiline
               maxLength={4000}
-              onSubmitEditing={sendMessage}
+              onSubmitEditing={Platform.OS !== "web" ? sendMessage : undefined}
+              onKeyPress={
+                Platform.OS === "web"
+                  ? (e) => {
+                      if (
+                        e.nativeEvent.key === "Enter" &&
+                        !e.nativeEvent.shiftKey
+                      ) {
+                        e.preventDefault();
+                        sendMessage();
+                      }
+                    }
+                  : undefined
+              }
               returnKeyType="send"
               editable={!isLoading}
             />
@@ -204,6 +376,114 @@ const styles = StyleSheet.create({
   statusText: {
     fontSize: 12,
     color: theme.colors.textSecondary,
+  },
+  providerRow: {
+    flexDirection: "row",
+    marginTop: 12,
+    gap: 8,
+  },
+  providerChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.surfaceLight,
+  },
+  providerChipSelected: {
+    borderColor: theme.colors.primary,
+    backgroundColor: theme.colors.primary,
+  },
+  providerChipText: {
+    color: theme.colors.textSecondary,
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  providerChipTextSelected: {
+    color: "#FFF",
+  },
+  settingsChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.surface,
+  },
+  settingsChipText: {
+    color: theme.colors.text,
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.55)",
+    justifyContent: "center",
+    padding: 20,
+  },
+  modalCard: {
+    backgroundColor: theme.colors.surface,
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  modalTitle: {
+    color: theme.colors.text,
+    fontSize: 18,
+    fontWeight: "700",
+  },
+  modalSubtitle: {
+    color: theme.colors.textSecondary,
+    fontSize: 12,
+    marginTop: 6,
+    marginBottom: 14,
+  },
+  fieldLabel: {
+    color: theme.colors.textSecondary,
+    fontSize: 12,
+    marginBottom: 6,
+  },
+  fieldInput: {
+    backgroundColor: theme.colors.surfaceLight,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: 10,
+    color: theme.colors.text,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    marginBottom: 10,
+    fontSize: 13,
+  },
+  modalActions: {
+    marginTop: 8,
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    gap: 8,
+  },
+  modalSecondaryButton: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.surfaceLight,
+  },
+  modalSecondaryButtonText: {
+    color: theme.colors.textSecondary,
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  modalPrimaryButton: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 10,
+    backgroundColor: theme.colors.primary,
+  },
+  modalPrimaryButtonText: {
+    color: "#FFF",
+    fontSize: 13,
+    fontWeight: "700",
   },
   messageList: {
     paddingVertical: 12,

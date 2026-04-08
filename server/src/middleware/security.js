@@ -66,7 +66,7 @@ function sanitizeObject(obj) {
 
 // Validate chat request body
 export function validateChatRequest(req, res, next) {
-  const { message, history } = req.body;
+  const { message, history, provider, providerConfig } = req.body;
 
   if (!message || typeof message !== "string") {
     return res
@@ -88,6 +88,48 @@ export function validateChatRequest(req, res, next) {
     return res
       .status(400)
       .json({ error: "Conversation history too long (max 50 messages)." });
+  }
+
+  if (
+    provider &&
+    !["ollama", "gemini", "groq"].includes(String(provider).toLowerCase())
+  ) {
+    return res
+      .status(400)
+      .json({ error: "Provider must be one of: ollama, gemini, groq." });
+  }
+
+  if (providerConfig && typeof providerConfig !== "object") {
+    return res.status(400).json({ error: "providerConfig must be an object." });
+  }
+
+  const maxFieldLength = 300;
+  const configFields = [
+    "geminiApiKey",
+    "groqApiKey",
+    "ollamaModel",
+    "geminiModel",
+    "groqModel",
+    "geminiBaseUrl",
+    "groqBaseUrl",
+  ];
+
+  if (providerConfig) {
+    for (const key of configFields) {
+      const value = providerConfig[key];
+      if (value !== undefined && typeof value !== "string") {
+        return res
+          .status(400)
+          .json({ error: `providerConfig.${key} must be a string.` });
+      }
+      if (typeof value === "string" && value.length > maxFieldLength) {
+        return res
+          .status(400)
+          .json({
+            error: `providerConfig.${key} is too long (max ${maxFieldLength}).`,
+          });
+      }
+    }
   }
 
   next();

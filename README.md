@@ -1,64 +1,58 @@
-# 🤖 Chatbot Expo — Smart Research & Notes Assistant
+# Chatbot Expo
 
-A polished chatbot app powered by **Google Gemini AI** with dual **MCP (Model Context Protocol)** integration.
+Polished Expo chatbot app with dual MCP integration and multi-model provider support.
 
-## ✨ Features
+Repository: https://github.com/vicjeremy/chatbot-expo
 
-| Feature | MCP Server | Type |
-|---------|-----------|------|
-| 🔍 Fetch & summarize any web page | `@modelcontextprotocol/server-fetch` | **Read (MCP A)** |
-| 📝 Save notes from conversations | `@modelcontextprotocol/server-sqlite` | **Write (MCP B)** |
-| 📋 List, search, update, delete notes | `@modelcontextprotocol/server-sqlite` | **Read/Write (MCP B)** |
+## Brief Compliance
 
-## 🏗 Architecture
+1. Minimum 2x MCP: met
 
-```
-┌─────────────────────────────────────────────────┐
-│                 Expo App (Frontend)              │
-│  ┌──────────┐  ┌──────────┐                      │
-│  │  Chat    │  │  Notes   │                      │
-│  │  Screen  │  │  Screen  │                      │
-│  └────┬─────┘  └────┬─────┘                      │
-│       └──────┬───────┘                            │
-│              ▼                                    │
-│     REST API (fetch / POST / DELETE)             │
-└──────────────┬───────────────────────────────────┘
-               ▼
-┌─────────────────────────────────────────────────┐
-│           Node.js + Express Server               │
-│  ┌─────────────┐  ┌──────────────────────────┐   │
-│  │ Gemini AI   │  │ Security Middleware       │   │
-│  │ (tool calls)│  │ (Helmet, CORS, Rate Limit)│  │
-│  └──────┬──────┘  └──────────────────────────┘   │
-│         ▼                                        │
-│  ┌──────────────────────────────────────────┐    │
-│  │          MCP Client Manager               │    │
-│  │  ┌────────────┐  ┌─────────────────────┐ │    │
-│  │  │ MCP A:     │  │ MCP B:              │ │    │
-│  │  │ Fetch      │  │ SQLite              │ │    │
-│  │  │ (read web) │  │ (CRUD notes)        │ │    │
-│  │  └────────────┘  └─────────────────────┘ │    │
-│  └──────────────────────────────────────────┘    │
-└─────────────────────────────────────────────────┘
-```
+- MCP A (query data): mcp-server-fetch for webpage retrieval
+- MCP B (modify data): mcp-server-sqlite for notes CRUD
 
-## 🚀 Quick Start
+2. Query MCP A and modify MCP B: met
+
+- Query: fetch_webpage tool
+- Modify: save_note, update_note, delete_note tools
+
+3. AI coding agent/workflow: met
+
+- Built and iterated using VS Code GitHub Copilot workflow
+
+## Features
+
+- Chat with provider selection: Ollama, Gemini, Groq
+- In-app Settings modal to enter API keys/models (no manual .env editing required for end users)
+- Fetch and summarize web pages
+- Save, list, search, update, and delete notes
+
+## Architecture
+
+- Frontend: Expo React Native app
+- Backend: Node.js + Express API
+- MCP A: mcp-server-fetch
+- MCP B: mcp-server-sqlite
+- LLM providers: Ollama local, Gemini API, Groq API
+
+## Quick Start
 
 ### Prerequisites
-- Node.js 18+
-- A free [Google AI Studio API key](https://aistudio.google.com/apikey)
 
-### 1. Backend Setup
+- Node.js 18+
+- Python uv/uvx available in environment (for MCP servers)
+- Optional: Ollama installed locally (only if using Ollama provider)
+
+### Backend
 
 ```bash
 cd server
 cp .env.example .env
-# Edit .env and add your GEMINI_API_KEY
 npm install
 npm start
 ```
 
-### 2. Frontend Setup
+### Frontend
 
 ```bash
 cd expo-app
@@ -66,65 +60,60 @@ npm install
 npx expo start
 ```
 
-Scan the QR code with Expo Go on your phone, or press `w` for web.
+Press w for web, or scan QR for device testing.
 
-### 3. Try It Out
+## How To Use Chat (Model Picker + Settings)
 
-- **Fetch a page:** "Summarize https://en.wikipedia.org/wiki/Node.js"
-- **Save a note:** "Save that as a note titled Node.js Overview"
-- **List notes:** "Show me all my notes"
-- **Delete a note:** "Delete the Node.js Overview note"
+1. Open Chat screen.
+2. Pick model provider in header chips:
 
-## 🔒 Security
+- Ollama
+- Gemini
+- Groq
 
-- **Helmet** — Secure HTTP headers
-- **CORS** — Configurable origin whitelist
-- **Rate Limiting** — 30 req/min (chat), 100 req/min (API)
-- **XSS Sanitization** — Input cleaning on all endpoints
-- **Input Validation** — Message length & format checks
-- **Parameterized Queries** — SQL injection prevention via MCP
+3. Tap Settings.
+4. Enter credentials/model values:
 
-## 🚢 Deployment
+- Gemini API key and optional model
+- Groq API key and optional model
+- Optional Ollama model override
 
-### Railway / Render
+5. Tap Save and start chatting.
 
-1. Push to GitHub
-2. Connect repo to Railway/Render
-3. Set environment variable: `GEMINI_API_KEY`
-4. Deploy (uses `Dockerfile` or `npm start`)
+Notes:
 
-## 📁 Project Structure
+- If a setting field is empty, backend falls back to server .env defaults.
+- For Ollama, ensure your local/server Ollama instance is running and has the model pulled.
 
-```
-chatbot-expo/
-├── server/                    # Backend
-│   ├── src/
-│   │   ├── index.js           # Express server & routes
-│   │   ├── mcp-client.js      # Dual MCP connection manager
-│   │   ├── gemini-client.js   # Google Gemini AI + tool calling
-│   │   ├── tools.js           # Tool definitions
-│   │   └── middleware/
-│   │       └── security.js    # Helmet, rate limit, XSS, validation
-│   ├── Dockerfile
-│   └── package.json
-├── expo-app/                  # Frontend (React Native Expo)
-│   ├── App.js                 # Tab navigation
-│   └── src/
-│       ├── screens/
-│       │   ├── ChatScreen.js  # Chat interface
-│       │   └── NotesScreen.js # Notes management
-│       ├── components/
-│       │   └── MessageBubble.js
-│       ├── services/
-│       │   └── api.js         # Backend API client
-│       └── theme.js           # Design tokens
-└── README.md
-```
+## Example Prompts
 
-## 🛠 Built With
+- Read https://news.ycombinator.com and tell me the top 3 headlines.
+- Summarize https://en.wikipedia.org/wiki/React_Native in 3 bullets.
+- Save that summary as a note titled React Native History.
+- Show my notes about React Native.
 
-- **Google Gemini AI** (via AI Studio free API)
-- **MCP** — Model Context Protocol (`server-fetch` + `server-sqlite`)
-- **Expo** — React Native framework
-- **Express** — Node.js web server
-- **Google Antigravity** — AI coding agent (built entire project)
+## Environment Variables (Server)
+
+See server/.env.example.
+
+Common keys:
+
+- AI_PROVIDER=ollama|gemini|groq
+- OLLAMA_HOST, OLLAMA_MODEL
+- GEMINI_API_KEY, GEMINI_MODEL
+- GROQ_API_KEY, GROQ_MODEL
+- ALLOWED_ORIGINS
+
+## Submission Checklist
+
+1. Code repo link
+
+- https://github.com/vicjeremy/chatbot-expo
+
+## Built With
+
+- Expo + React Native Web
+- Node.js + Express
+- Model Context Protocol (mcp-server-fetch, mcp-server-sqlite)
+- Ollama / Gemini / Groq
+- VS Code GitHub Copilot workflow

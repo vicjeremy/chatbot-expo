@@ -9,7 +9,7 @@ import {
   validateChatRequest,
 } from "./middleware/security.js";
 import { mcpManager } from "./mcp-client.js";
-import { getOllamaClient } from "./ollama-client.js";
+import { getAIClient } from "./ollama-client.js";
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -41,11 +41,16 @@ app.get("/api/health", (req, res) => {
 // --- Chat Endpoint ---
 app.post("/api/chat", chatLimiter, validateChatRequest, async (req, res) => {
   try {
-    const { message, history } = req.body;
+    const { message, history, provider, providerConfig } = req.body;
     console.log(`\n💬 Chat: "${message.substring(0, 100)}..."`);
 
-    const ollama = getOllamaClient();
-    const response = await ollama.chat(message, history || []);
+    const aiClient = getAIClient();
+    const response = await aiClient.chat(
+      message,
+      history || [],
+      provider,
+      providerConfig || {},
+    );
 
     res.json({
       response,
@@ -123,12 +128,16 @@ async function start() {
     try {
       await mcpManager.initialize();
     } catch (err) {
-      console.warn("⚠️ Continuing with limited/no MCP features due to init error.");
+      console.warn(
+        "⚠️ Continuing with limited/no MCP features due to init error.",
+      );
     }
 
-    // Verify Ollama connection
-    getOllamaClient();
-    console.log("✅ Ollama client initialized");
+    // Verify AI client config
+    const aiClient = getAIClient();
+    console.log(
+      `✅ AI client initialized (default provider: ${aiClient.getDefaultProvider()})`,
+    );
 
     app.listen(PORT, () => {
       console.log("───────────────────────────────────");

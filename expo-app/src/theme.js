@@ -1,38 +1,38 @@
-// Theme system — dark mode with glassmorphism accents
+// Theme system — ultra-premium dark mode with glassmorphism 
 export const theme = {
   colors: {
     // Primary palette
-    primary: "#6C63FF",
-    primaryLight: "#8B83FF",
-    primaryDark: "#4A42E0",
+    primary: "#7A6CFF",
+    primaryLight: "#9B92FF",
+    primaryDark: "#4E42D4",
 
     // Accent
-    accent: "#00D4AA",
-    accentLight: "#33DDBB",
-    warning: "#FFB347",
-    error: "#FF6B6B",
-    success: "#4ECDC4",
+    accent: "#00F0FF",
+    accentLight: "#5CFFF5",
+    warning: "#FFBE0B",
+    error: "#FF006E",
+    success: "#06D6A0",
 
-    // Backgrounds
-    background: "#0F0F1A",
-    surface: "#1A1A2E",
-    surfaceLight: "#252540",
-    surfaceGlass: "rgba(30, 30, 60, 0.7)",
+    // Backgrounds (Deep OLED aesthetic)
+    background: "#08080C",
+    surface: "#12121A",
+    surfaceLight: "#1F1F2E",
+    surfaceGlass: "rgba(18, 18, 26, 0.7)",
 
     // Text
-    text: "#EAEAEA",
-    textSecondary: "#9A9AB0",
-    textMuted: "#5A5A7A",
+    text: "#F8F9FA",
+    textSecondary: "#A0A0B0",
+    textMuted: "#60607A",
 
     // Chat bubbles
-    userBubble: "#6C63FF",
+    userBubble: "#7A6CFF",
     userBubbleText: "#FFFFFF",
-    aiBubble: "#1E1E3A",
-    aiBubbleText: "#EAEAEA",
+    aiBubble: "#1A1A24",
+    aiBubbleText: "#F8F9FA",
 
     // Borders
-    border: "#2A2A45",
-    borderLight: "#3A3A55",
+    border: "rgba(255, 255, 255, 0.08)",
+    borderLight: "rgba(255, 255, 255, 0.15)",
   },
 
   fonts: {
@@ -60,17 +60,24 @@ export const theme = {
   shadows: {
     sm: {
       shadowColor: "#000",
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.25,
-      shadowRadius: 3.84,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.3,
+      shadowRadius: 6,
       elevation: 5,
     },
     md: {
-      shadowColor: "#6C63FF",
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.15,
-      shadowRadius: 8,
-      elevation: 8,
+      shadowColor: "#7A6CFF",
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.25,
+      shadowRadius: 15,
+      elevation: 10,
     },
+    glow: {
+      shadowColor: "#00F0FF",
+      shadowOffset: { width: 0, height: 0 },
+      shadowOpacity: 0.4,
+      shadowRadius: 10,
+      elevation: 15,
+    }
   },
 };
