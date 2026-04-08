@@ -1,6 +1,12 @@
 import React, { useState } from "react";
 import { StatusBar } from "expo-status-bar";
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  SafeAreaView,
+} from "react-native";
 import ChatScreen from "./src/screens/ChatScreen";
 import NotesScreen from "./src/screens/NotesScreen";
 
@@ -34,10 +40,25 @@ export default function App() {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar style="light" />
-      
+
       {/* Screens */}
       <View style={styles.screenContainer}>
-        {activeTab === "chat" ? <ChatScreen /> : <NotesScreen />}
+        <View
+          style={[
+            styles.tabScreen,
+            activeTab === "chat" ? styles.visibleScreen : styles.hiddenScreen,
+          ]}
+        >
+          <ChatScreen isActive={activeTab === "chat"} />
+        </View>
+        <View
+          style={[
+            styles.tabScreen,
+            activeTab === "notes" ? styles.visibleScreen : styles.hiddenScreen,
+          ]}
+        >
+          <NotesScreen isActive={activeTab === "notes"} />
+        </View>
       </View>
 
       {/* Tab Bar */}
@@ -66,6 +87,18 @@ const styles = StyleSheet.create({
   },
   screenContainer: {
     flex: 1,
+    position: "relative",
+  },
+  tabScreen: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  visibleScreen: {
+    opacity: 1,
+    pointerEvents: "auto",
+  },
+  hiddenScreen: {
+    opacity: 0,
+    pointerEvents: "none",
   },
   tabBar: {
     flexDirection: "row",

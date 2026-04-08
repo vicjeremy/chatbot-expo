@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import {
   View,
   Text,
@@ -13,11 +13,70 @@ import {
 import { theme } from "../theme";
 
 const useSafeAreaInsets = () => ({ top: 40, bottom: 20 });
-const useFocusEffect = (cb) => React.useEffect(() => { cb(); }, [cb]);
 
 import { api } from "../services/api";
 
-export default function NotesScreen() {
+function parseTableNotes(text) {
+  const lines = text
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.includes("|"));
+
+  if (lines.length < 3) return [];
+
+  const headerLine = lines[0];
+  const separatorLine = lines[1];
+
+  if (!separatorLine.includes("---")) {
+    return [];
+  }
+
+  const headers = headerLine
+    .split("|")
+    .map((h) => h.trim())
+    .filter(Boolean);
+
+  if (headers.length === 0) {
+    return [];
+  }
+
+  return lines.slice(2).map((row, index) => {
+    const cells = row
+      .split("|")
+      .map((c) => c.trim())
+      .filter(Boolean);
+
+    const note = { id: `row-${index}` };
+    headers.forEach((header, i) => {
+      note[header] = cells[i] || "";
+    });
+
+    return note;
+  });
+}
+
+function parseNotesResponse(rawNotes) {
+  if (Array.isArray(rawNotes)) {
+    return rawNotes;
+  }
+
+  if (typeof rawNotes !== "string" || !rawNotes.trim()) {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(rawNotes);
+    if (Array.isArray(parsed)) {
+      return parsed;
+    }
+  } catch {
+    // Continue with alternate parser.
+  }
+
+  return parseTableNotes(rawNotes);
+}
+
+export default function NotesScreen({ isActive = true }) {
   const [notes, setNotes] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [refreshing, setRefreshing] = useState(false);
@@ -27,29 +86,18 @@ export default function NotesScreen() {
   const fetchNotes = useCallback(async () => {
     try {
       const data = await api.getNotes();
-      // Parse the notes string from SQLite MCP response
-      let parsed = [];
-      if (data.notes && typeof data.notes === "string") {
-        try {
-          parsed = JSON.parse(data.notes);
-        } catch {
-          // If it's not JSON, it might be a formatted table string
-          parsed = [];
-        }
-      } else if (Array.isArray(data.notes)) {
-        parsed = data.notes;
-      }
+      const parsed = parseNotesResponse(data.notes);
       setNotes(Array.isArray(parsed) ? parsed : []);
     } catch (err) {
       console.log("Failed to fetch notes:", err.message);
     }
   }, []);
 
-  useFocusEffect(
-    useCallback(() => {
+  useEffect(() => {
+    if (isActive) {
       fetchNotes();
-    }, [fetchNotes]),
-  );
+    }
+  }, [fetchNotes, isActive]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -178,7 +226,7 @@ export default function NotesScreen() {
       <FlatList
         data={filteredNotes}
         renderItem={renderNote}
-        keyExtractor={(item) => item.id || Math.random().toString()}
+        keyExtractor={(item, index) => item.id || `note-${index}`}
         contentContainerStyle={styles.list}
         refreshControl={
           <RefreshControl
