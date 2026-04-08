@@ -14,7 +14,7 @@ class ApiService {
   async sendMessage(
     message,
     history = [],
-    provider = "ollama",
+    provider = "groq",
     providerConfig = {},
   ) {
     const response = await fetch(`${this.baseUrl}/api/chat`, {

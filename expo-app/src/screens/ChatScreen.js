@@ -35,7 +35,7 @@ export default function ChatScreen() {
   const [messages, setMessages] = useState([WELCOME_MESSAGE]);
   const [inputText, setInputText] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedProvider, setSelectedProvider] = useState("ollama");
+  const [selectedProvider, setSelectedProvider] = useState("groq");
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [providerConfig, setProviderConfig] = useState({
     geminiApiKey: "",
