@@ -318,23 +318,58 @@ class AIClient {
       payload.tool_choice = "auto";
     }
 
-    const response = await fetch(`${config.baseUrl}/chat/completions`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${config.apiKey}`,
-      },
-      body: JSON.stringify(payload),
-    });
+    const maxAttempts = 2;
+    let lastStatus = null;
+    let lastErrorText = "";
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(
-        `${config.provider} API error ${response.status}: ${errorText.substring(0, 250)}`,
-      );
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      const response = await fetch(`${config.baseUrl}/chat/completions`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${config.apiKey}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (response.ok) {
+        return response.json();
+      }
+
+      lastStatus = response.status;
+      lastErrorText = await response.text();
+
+      const isRateLimit = response.status === 429;
+      const hasRetryLeft = attempt < maxAttempts;
+
+      if (isRateLimit && hasRetryLeft) {
+        const retryAfterHeader = Number(response.headers.get("retry-after"));
+        const retryAfterFromBodyMatch = lastErrorText.match(
+          /try again in\s*([\d.]+)s/i,
+        );
+        const retryAfterFromBody = retryAfterFromBodyMatch
+          ? Number(retryAfterFromBodyMatch[1])
+          : Number.NaN;
+
+        const retryAfterSeconds = Number.isFinite(retryAfterHeader)
+          ? retryAfterHeader
+          : Number.isFinite(retryAfterFromBody)
+            ? retryAfterFromBody
+            : 2;
+
+        const clampedSeconds = Math.max(1, Math.min(15, retryAfterSeconds));
+        await new Promise((resolve) =>
+          setTimeout(resolve, Math.round(clampedSeconds * 1000)),
+        );
+        continue;
+      }
+
+      break;
     }
 
-    return response.json();
+    throw new Error(
+      `${config.provider} API error ${lastStatus}: ${String(lastErrorText).substring(0, 250)}`,
+    );
   }
 }
 

@@ -14,6 +14,23 @@ import { getAIClient } from "./ollama-client.js";
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+function resolveTrustProxy(value) {
+  if (value === undefined || value === null || value === "") {
+    return 1;
+  }
+
+  const normalized = String(value).toLowerCase().trim();
+  if (["true", "1", "yes", "on"].includes(normalized)) return true;
+  if (["false", "0", "no", "off"].includes(normalized)) return false;
+
+  const parsedNumber = Number(normalized);
+  if (!Number.isNaN(parsedNumber)) return parsedNumber;
+
+  return normalized;
+}
+
+app.set("trust proxy", resolveTrustProxy(process.env.TRUST_PROXY));
+
 // --- Global Middleware ---
 app.use(securityHeaders);
 app.use(
@@ -63,9 +80,10 @@ app.post("/api/chat", chatLimiter, validateChatRequest, async (req, res) => {
       return res.status(401).json({ error: "Invalid or missing API key." });
     }
     if (err.message?.includes("quota") || err.message?.includes("rate")) {
-      return res
-        .status(429)
-        .json({ error: "AI rate limit reached. Please try again later." });
+      return res.status(429).json({
+        error:
+          "AI rate limit reached. Retry in a few seconds, or switch provider/model in settings.",
+      });
     }
 
     res.status(500).json({
