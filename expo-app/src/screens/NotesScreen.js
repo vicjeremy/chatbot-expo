@@ -17,6 +17,25 @@ const useSafeAreaInsets = () => ({ top: 40, bottom: 20 });
 import { api } from "../services/api";
 
 function parseTableNotes(text) {
+  const splitTableRow = (row) => {
+    const parts = row.split("|");
+    if (parts[0]?.trim() === "") parts.shift();
+    if (parts[parts.length - 1]?.trim() === "") parts.pop();
+    return parts.map((part) => part.trim());
+  };
+
+  const normalizeHeader = (header) => {
+    const key = header
+      .toLowerCase()
+      .replace(/\s+/g, "_")
+      .replace(/[^a-z0-9_]/g, "");
+
+    if (key === "sourceurl" || key === "source") return "source_url";
+    if (key === "createdat" || key === "created") return "created_at";
+    if (key === "updatedat" || key === "updated") return "updated_at";
+    return key;
+  };
+
   const lines = text
     .split("\n")
     .map((line) => line.trim())
@@ -31,20 +50,14 @@ function parseTableNotes(text) {
     return [];
   }
 
-  const headers = headerLine
-    .split("|")
-    .map((h) => h.trim())
-    .filter(Boolean);
+  const headers = splitTableRow(headerLine).map(normalizeHeader);
 
   if (headers.length === 0) {
     return [];
   }
 
   return lines.slice(2).map((row, index) => {
-    const cells = row
-      .split("|")
-      .map((c) => c.trim())
-      .filter(Boolean);
+    const cells = splitTableRow(row);
 
     const note = { id: `row-${index}` };
     headers.forEach((header, i) => {
@@ -64,8 +77,13 @@ function parseNotesResponse(rawNotes) {
     return [];
   }
 
+  const normalizedRaw = rawNotes
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```$/, "")
+    .trim();
+
   try {
-    const parsed = JSON.parse(rawNotes);
+    const parsed = JSON.parse(normalizedRaw);
     if (Array.isArray(parsed)) {
       return parsed;
     }
@@ -73,7 +91,7 @@ function parseNotesResponse(rawNotes) {
     // Continue with alternate parser.
   }
 
-  return parseTableNotes(rawNotes);
+  return parseTableNotes(normalizedRaw);
 }
 
 export default function NotesScreen({ isActive = true }) {
