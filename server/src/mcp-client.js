@@ -154,6 +154,41 @@ class MCPClientManager {
     });
   }
 
+  parsePythonLiteralRows(text) {
+    if (
+      !text ||
+      !(text.startsWith("[") && text.endsWith("]")) ||
+      !text.includes("{")
+    ) {
+      return [];
+    }
+
+    // mcp-server-sqlite often returns python-style literals, e.g.:
+    // [{'id': '123', 'title': 'Note'}]
+    const jsonLike = text
+      .replace(/\bNone\b/g, "null")
+      .replace(/\bTrue\b/g, "true")
+      .replace(/\bFalse\b/g, "false")
+      .replace(/([{,]\s*)'([^'\\]*(?:\\.[^'\\]*)*)'\s*:/g, '$1"$2":')
+      .replace(/:\s*'([^'\\]*(?:\\.[^'\\]*)*)'/g, (_match, value) => {
+        const unescaped = value.replace(/\\'/g, "'").replace(/\\\\/g, "\\");
+        const escaped = unescaped
+          .replace(/\\/g, "\\\\")
+          .replace(/"/g, '\\"')
+          .replace(/\n/g, "\\n")
+          .replace(/\r/g, "\\r")
+          .replace(/\t/g, "\\t");
+        return `: \"${escaped}\"`;
+      });
+
+    try {
+      const parsed = JSON.parse(jsonLike);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+
   parseSqliteRows(rawText) {
     if (!rawText || typeof rawText !== "string") return [];
 
@@ -170,6 +205,9 @@ class MCPClientManager {
     } catch {
       // Fall through to text parsers.
     }
+
+    const pythonRows = this.parsePythonLiteralRows(cleaned);
+    if (pythonRows.length > 0) return pythonRows;
 
     const tableRows = this.parseTableRows(cleaned);
     if (tableRows.length > 0) return tableRows;
