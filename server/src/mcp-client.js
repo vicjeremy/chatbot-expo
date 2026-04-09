@@ -49,11 +49,7 @@ class MCPClientManager {
     try {
       this.sqliteTransport = new StdioClientTransport({
         command: "uvx",
-        args: [
-          "mcp-server-sqlite",
-          "--db-path",
-          DB_PATH,
-        ],
+        args: ["mcp-server-sqlite", "--db-path", DB_PATH],
       });
 
       this.sqliteClient = new Client({
@@ -94,6 +90,97 @@ class MCPClientManager {
       },
     });
     console.log("✅ Notes table ready");
+  }
+
+  parseTableRows(text) {
+    const splitRow = (row) => {
+      const parts = row.split("|");
+      if (parts[0]?.trim() === "") parts.shift();
+      if (parts[parts.length - 1]?.trim() === "") parts.pop();
+      return parts.map((part) => part.trim());
+    };
+
+    const normalizeHeader = (header) =>
+      header
+        .toLowerCase()
+        .replace(/\s+/g, "_")
+        .replace(/[^a-z0-9_]/g, "");
+
+    const lines = text
+      .split("\n")
+      .map((line) => line.trim())
+      .filter((line) => line.includes("|"));
+
+    if (lines.length < 3) return [];
+
+    const headers = splitRow(lines[0]).map(normalizeHeader);
+    if (headers.length === 0) return [];
+
+    const separator = lines[1];
+    if (!separator.includes("---")) return [];
+
+    return lines.slice(2).map((row) => {
+      const cells = splitRow(row);
+      const entry = {};
+
+      headers.forEach((header, i) => {
+        entry[header] = cells[i] || "";
+      });
+
+      return entry;
+    });
+  }
+
+  parseDelimitedRows(text, delimiter) {
+    const lines = text
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    if (lines.length < 2 || !lines[0].includes(delimiter)) return [];
+
+    const headers = lines[0].split(delimiter).map((h) => h.trim());
+    if (headers.length === 0) return [];
+
+    return lines.slice(1).map((line) => {
+      const cells = line.split(delimiter).map((c) => c.trim());
+      const entry = {};
+
+      headers.forEach((header, i) => {
+        entry[header] = cells[i] || "";
+      });
+
+      return entry;
+    });
+  }
+
+  parseSqliteRows(rawText) {
+    if (!rawText || typeof rawText !== "string") return [];
+
+    const cleaned = rawText
+      .replace(/^```(?:json)?\s*/i, "")
+      .replace(/\s*```$/, "")
+      .trim();
+
+    if (!cleaned) return [];
+
+    try {
+      const parsed = JSON.parse(cleaned);
+      if (Array.isArray(parsed)) return parsed;
+    } catch {
+      // Fall through to text parsers.
+    }
+
+    const tableRows = this.parseTableRows(cleaned);
+    if (tableRows.length > 0) return tableRows;
+
+    const tsvRows = this.parseDelimitedRows(cleaned, "\t");
+    if (tsvRows.length > 0) return tsvRows;
+
+    const csvRows = this.parseDelimitedRows(cleaned, ",");
+    if (csvRows.length > 0) return csvRows;
+
+    return [];
   }
 
   // --- MCP A Operations (READ) ---
@@ -169,7 +256,7 @@ class MCPClientManager {
       .map((c) => c.text)
       .join("\n");
 
-    return textContent;
+    return this.parseSqliteRows(textContent);
   }
 
   async searchNotes(keyword) {
@@ -192,7 +279,7 @@ class MCPClientManager {
       .map((c) => c.text)
       .join("\n");
 
-    return textContent;
+    return this.parseSqliteRows(textContent);
   }
 
   async deleteNote(id) {
