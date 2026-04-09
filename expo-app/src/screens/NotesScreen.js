@@ -8,7 +8,7 @@ import {
   StyleSheet,
   Alert,
   RefreshControl,
-  Animated,
+  Modal,
 } from "react-native";
 import { theme } from "../theme";
 
@@ -99,6 +99,10 @@ export default function NotesScreen({ isActive = true }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [refreshing, setRefreshing] = useState(false);
   const [expandedId, setExpandedId] = useState(null);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editId, setEditId] = useState("");
+  const [editTitle, setEditTitle] = useState("");
+  const [editContent, setEditContent] = useState("");
   const insets = useSafeAreaInsets();
 
   const fetchNotes = useCallback(async () => {
@@ -123,23 +127,65 @@ export default function NotesScreen({ isActive = true }) {
     setRefreshing(false);
   }, [fetchNotes]);
 
-  const handleDelete = useCallback((id, title) => {
-    Alert.alert("Delete Note", `Delete "${title}"?`, [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            await api.deleteNote(id);
-            setNotes((prev) => prev.filter((n) => n.id !== id));
-          } catch (err) {
-            Alert.alert("Error", "Failed to delete note.");
-          }
+  const handleDelete = useCallback(
+    (id, title) => {
+      Alert.alert("Delete Note", `Delete "${title}"?`, [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await api.deleteNote(id);
+              setExpandedId((current) => (current === id ? null : current));
+              await fetchNotes();
+            } catch (err) {
+              Alert.alert("Error", "Failed to delete note.");
+            }
+          },
         },
-      },
-    ]);
+      ]);
+    },
+    [fetchNotes],
+  );
+
+  const openEditModal = useCallback((note) => {
+    setEditId(String(note.id || ""));
+    setEditTitle(note.title || "");
+    setEditContent(note.content || "");
+    setEditModalOpen(true);
   }, []);
+
+  const closeEditModal = useCallback(() => {
+    setEditModalOpen(false);
+    setEditId("");
+    setEditTitle("");
+    setEditContent("");
+  }, []);
+
+  const handleSaveEdit = useCallback(async () => {
+    const id = editId.trim();
+    const title = editTitle.trim();
+    const content = editContent.trim();
+
+    if (!id) {
+      Alert.alert("Error", "Missing note id.");
+      return;
+    }
+
+    if (!title || !content) {
+      Alert.alert("Validation", "Title and content cannot be empty.");
+      return;
+    }
+
+    try {
+      await api.updateNote(id, { title, content });
+      await fetchNotes();
+      closeEditModal();
+    } catch {
+      Alert.alert("Error", "Failed to update note.");
+    }
+  }, [closeEditModal, editContent, editId, editTitle, fetchNotes]);
 
   const filteredNotes = notes.filter((note) => {
     if (!searchQuery) return true;
@@ -170,13 +216,22 @@ export default function NotesScreen({ isActive = true }) {
                 {item.title || "Untitled Note"}
               </Text>
             </View>
-            <TouchableOpacity
-              style={styles.deleteButton}
-              onPress={() => handleDelete(item.id, item.title)}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
-              <Text style={styles.deleteIcon}>✕</Text>
-            </TouchableOpacity>
+            <View style={styles.actionsRow}>
+              <TouchableOpacity
+                style={styles.editButton}
+                onPress={() => openEditModal(item)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Text style={styles.editIcon}>✎</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.deleteButton}
+                onPress={() => handleDelete(item.id, item.title)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Text style={styles.deleteIcon}>✕</Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
           <Text
@@ -208,7 +263,7 @@ export default function NotesScreen({ isActive = true }) {
         </TouchableOpacity>
       );
     },
-    [expandedId, handleDelete],
+    [expandedId, handleDelete, openEditModal],
   );
 
   return (
@@ -263,6 +318,56 @@ export default function NotesScreen({ isActive = true }) {
           </View>
         }
       />
+
+      <Modal
+        visible={editModalOpen}
+        animationType="slide"
+        transparent
+        onRequestClose={closeEditModal}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Edit Note</Text>
+
+            <Text style={styles.fieldLabel}>Title</Text>
+            <TextInput
+              style={styles.fieldInput}
+              value={editTitle}
+              onChangeText={setEditTitle}
+              placeholder="Note title"
+              placeholderTextColor={theme.colors.textMuted}
+            />
+
+            <Text style={styles.fieldLabel}>Content</Text>
+            <TextInput
+              style={[styles.fieldInput, styles.fieldInputMultiline]}
+              value={editContent}
+              onChangeText={setEditContent}
+              placeholder="Note content"
+              placeholderTextColor={theme.colors.textMuted}
+              multiline
+              textAlignVertical="top"
+            />
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={styles.modalSecondaryButton}
+                onPress={closeEditModal}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.modalSecondaryButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.modalPrimaryButton}
+                onPress={handleSaveEdit}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.modalPrimaryButtonText}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -352,6 +457,24 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
     flex: 1,
   },
+  actionsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  editButton: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: theme.colors.surfaceLight,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  editIcon: {
+    color: theme.colors.primaryLight,
+    fontSize: 14,
+    fontWeight: "700",
+  },
   deleteButton: {
     width: 28,
     height: 28,
@@ -410,5 +533,70 @@ const styles = StyleSheet.create({
     color: theme.colors.textMuted,
     textAlign: "center",
     lineHeight: 20,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    justifyContent: "center",
+    padding: 16,
+  },
+  modalCard: {
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.radius.lg,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    padding: 16,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: theme.colors.text,
+    marginBottom: 12,
+  },
+  fieldLabel: {
+    color: theme.colors.textSecondary,
+    fontSize: 12,
+    marginBottom: 6,
+  },
+  fieldInput: {
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: theme.radius.md,
+    backgroundColor: theme.colors.surfaceLight,
+    color: theme.colors.text,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 12,
+    fontSize: 14,
+  },
+  fieldInputMultiline: {
+    minHeight: 120,
+  },
+  modalActions: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    gap: 10,
+    marginTop: 4,
+  },
+  modalSecondaryButton: {
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  modalSecondaryButtonText: {
+    color: theme.colors.textSecondary,
+    fontWeight: "600",
+  },
+  modalPrimaryButton: {
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: theme.radius.md,
+    backgroundColor: theme.colors.primary,
+  },
+  modalPrimaryButtonText: {
+    color: "#fff",
+    fontWeight: "700",
   },
 });

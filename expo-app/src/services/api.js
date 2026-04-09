@@ -67,6 +67,20 @@ class ApiService {
     return response.json();
   }
 
+  async updateNote(id, payload = {}) {
+    const response = await fetch(`${this.baseUrl}/api/notes/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to update note");
+    }
+
+    return response.json();
+  }
+
   async healthCheck() {
     try {
       const response = await fetch(`${this.baseUrl}/api/health`);

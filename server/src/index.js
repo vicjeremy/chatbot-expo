@@ -130,6 +130,27 @@ app.delete("/api/notes/:id", apiLimiter, async (req, res) => {
   }
 });
 
+app.put("/api/notes/:id", apiLimiter, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, content } = req.body || {};
+
+    if (!id) return res.status(400).json({ error: "Note ID is required." });
+    if (title !== undefined && typeof title !== "string") {
+      return res.status(400).json({ error: "Title must be a string." });
+    }
+    if (content !== undefined && typeof content !== "string") {
+      return res.status(400).json({ error: "Content must be a string." });
+    }
+
+    const result = await mcpManager.updateNote(id, title, content);
+    res.json(result);
+  } catch (err) {
+    console.error("❌ Update note error:", err);
+    res.status(500).json({ error: "Failed to update note." });
+  }
+});
+
 // --- Error Handler ---
 app.use((err, req, res, _next) => {
   console.error("💥 Unhandled error:", err);
