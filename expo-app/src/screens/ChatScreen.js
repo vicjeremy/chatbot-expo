@@ -11,17 +11,16 @@ import {
   Modal,
 } from "react-native";
 import { theme } from "../theme";
-
-const useSafeAreaInsets = () => ({ top: 40, bottom: 20 });
-
 import { MessageBubble, TypingIndicator } from "../components/MessageBubble";
 import { api } from "../services/api";
+
+const useSafeAreaInsets = () => ({ top: 40, bottom: 20 });
 
 const WELCOME_MESSAGE = {
   id: "welcome",
   role: "assistant",
   content:
-    '👋 Hi! I\'m your AI Research Assistant.\n\n🔍 I can **fetch & summarize** any web page\n📝 I can **save notes** from our conversations\n📋 I can **manage your notes** (list, search, edit, delete)\n\nTry: "Fetch https://example.com" or "Show my notes"',
+    "I can synthesize links, summarize notes, and map trends. Ask me to fetch a URL, compare ideas, or save insights to your knowledge base.",
   timestamp: new Date().toISOString(),
 };
 
@@ -29,6 +28,12 @@ const PROVIDERS = [
   { key: "ollama", label: "Ollama" },
   { key: "gemini", label: "Gemini" },
   { key: "groq", label: "Groq" },
+];
+
+const RESEARCH_CHIPS = [
+  "Analyze RWA Protocols",
+  "L2 Transaction Trends",
+  "Top 5 Yield Strategies",
 ];
 
 export default function ChatScreen() {
@@ -67,7 +72,6 @@ export default function ChatScreen() {
     setIsLoading(true);
 
     try {
-      // Build history from messages (exclude welcome message)
       const history = messages
         .filter((m) => m.id !== "welcome")
         .map((m) => ({ role: m.role, content: m.content }));
@@ -92,7 +96,7 @@ export default function ChatScreen() {
       const errorMessage = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
-        content: `⚠️ ${err.message || "Failed to connect. Is the server running?"}`,
+        content: `Connection issue: ${err.message || "Server is not responding."}`,
         timestamp: new Date().toISOString(),
       };
       setMessages((prev) => [...prev, errorMessage]);
@@ -100,6 +104,10 @@ export default function ChatScreen() {
       setIsLoading(false);
     }
   }, [inputText, isLoading, messages, providerConfig, selectedProvider]);
+
+  const quickPrompt = useCallback((text) => {
+    setInputText(text);
+  }, []);
 
   const renderItem = useCallback(
     ({ item }) => <MessageBubble message={item} />,
@@ -109,64 +117,131 @@ export default function ChatScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerContent}>
-          <Text style={styles.headerIcon}>🤖</Text>
-          <View>
-            <Text style={styles.headerTitle}>Research Assistant</Text>
-            <View style={styles.statusRow}>
-              <View
+      <View style={styles.headerOverlay} />
+
+      <View style={styles.headerBar}>
+        <TouchableOpacity style={styles.iconButton} activeOpacity={0.8}>
+          <Text style={styles.iconGlyph}>☰</Text>
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Curator AI</Text>
+        <TouchableOpacity
+          style={styles.iconButton}
+          onPress={() => setIsSettingsOpen(true)}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.iconGlyph}>⚙</Text>
+        </TouchableOpacity>
+      </View>
+
+      <Text style={styles.timeMarker}>Today</Text>
+
+      <View style={styles.providerRow}>
+        {PROVIDERS.map((provider) => {
+          const selected = provider.key === selectedProvider;
+          return (
+            <TouchableOpacity
+              key={provider.key}
+              style={[
+                styles.providerChip,
+                selected && styles.providerChipSelected,
+              ]}
+              onPress={() => setSelectedProvider(provider.key)}
+              activeOpacity={0.8}
+              disabled={isLoading}
+            >
+              <Text
                 style={[
-                  styles.statusDot,
-                  {
-                    backgroundColor: isLoading
-                      ? theme.colors.warning
-                      : theme.colors.success,
-                  },
+                  styles.providerChipText,
+                  selected && styles.providerChipTextActive,
                 ]}
-              />
-              <Text style={styles.statusText}>
-                {isLoading ? "Thinking..." : "Online"}
-              </Text>
-            </View>
-          </View>
-        </View>
-        <View style={styles.providerRow}>
-          {PROVIDERS.map((provider) => {
-            const selected = provider.key === selectedProvider;
-            return (
-              <TouchableOpacity
-                key={provider.key}
-                style={[
-                  styles.providerChip,
-                  selected && styles.providerChipSelected,
-                ]}
-                onPress={() => setSelectedProvider(provider.key)}
-                disabled={isLoading}
-                activeOpacity={0.8}
               >
-                <Text
-                  style={[
-                    styles.providerChipText,
-                    selected && styles.providerChipTextSelected,
-                  ]}
-                >
-                  {provider.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
+                {provider.label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+
+      <FlatList
+        ref={flatListRef}
+        data={messages}
+        renderItem={renderItem}
+        keyExtractor={keyExtractor}
+        contentContainerStyle={styles.messageList}
+        onContentSizeChange={() =>
+          flatListRef.current?.scrollToEnd({ animated: true })
+        }
+        ListFooterComponent={isLoading ? <TypingIndicator /> : null}
+      />
+
+      <View style={styles.chipRow}>
+        {RESEARCH_CHIPS.map((chip) => (
           <TouchableOpacity
-            style={styles.settingsChip}
-            onPress={() => setIsSettingsOpen(true)}
-            disabled={isLoading}
+            key={chip}
+            style={styles.researchChip}
+            onPress={() => quickPrompt(chip)}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.researchChipText}>{chip}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={100}
+      >
+        <View
+          style={[
+            styles.composerWrap,
+            { paddingBottom: Math.max(insets.bottom, 10) },
+          ]}
+        >
+          <TouchableOpacity style={styles.plusButton} activeOpacity={0.8}>
+            <Text style={styles.plusButtonText}>＋</Text>
+          </TouchableOpacity>
+
+          <View style={styles.inputShell}>
+            <TextInput
+              style={styles.input}
+              value={inputText}
+              onChangeText={setInputText}
+              placeholder="Ask Curator AI..."
+              placeholderTextColor="rgba(199,196,215,0.45)"
+              multiline
+              maxLength={4000}
+              onSubmitEditing={Platform.OS !== "web" ? sendMessage : undefined}
+              onKeyPress={
+                Platform.OS === "web"
+                  ? (e) => {
+                      if (
+                        e.nativeEvent.key === "Enter" &&
+                        !e.nativeEvent.shiftKey
+                      ) {
+                        e.preventDefault();
+                        sendMessage();
+                      }
+                    }
+                  : undefined
+              }
+              returnKeyType="send"
+              editable={!isLoading}
+            />
+          </View>
+
+          <TouchableOpacity
+            style={[
+              styles.sendButton,
+              (!inputText.trim() || isLoading) && styles.sendButtonDisabled,
+            ]}
+            onPress={sendMessage}
+            disabled={!inputText.trim() || isLoading}
             activeOpacity={0.8}
           >
-            <Text style={styles.settingsChipText}>Settings</Text>
+            <Text style={styles.sendGlyph}>➤</Text>
           </TouchableOpacity>
         </View>
-      </View>
+      </KeyboardAvoidingView>
 
       <Modal
         visible={isSettingsOpen}
@@ -177,12 +252,8 @@ export default function ChatScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Provider Settings</Text>
-            <Text style={styles.modalSubtitle}>
-              Enter keys and model names here instead of editing server env
-              files.
-            </Text>
 
-            <Text style={styles.fieldLabel}>Ollama Model (optional)</Text>
+            <Text style={styles.fieldLabel}>Ollama Model</Text>
             <TextInput
               style={styles.fieldInput}
               value={providerConfig.ollamaModel}
@@ -206,7 +277,7 @@ export default function ChatScreen() {
               secureTextEntry
             />
 
-            <Text style={styles.fieldLabel}>Gemini Model (optional)</Text>
+            <Text style={styles.fieldLabel}>Gemini Model</Text>
             <TextInput
               style={styles.fieldInput}
               value={providerConfig.geminiModel}
@@ -231,7 +302,7 @@ export default function ChatScreen() {
               secureTextEntry
             />
 
-            <Text style={styles.fieldLabel}>Groq Model (optional)</Text>
+            <Text style={styles.fieldLabel}>Groq Model</Text>
             <TextInput
               style={styles.fieldInput}
               value={providerConfig.groqModel}
@@ -257,6 +328,7 @@ export default function ChatScreen() {
               >
                 <Text style={styles.modalSecondaryButtonText}>Clear</Text>
               </TouchableOpacity>
+
               <TouchableOpacity
                 style={styles.modalPrimaryButton}
                 onPress={() => setIsSettingsOpen(false)}
@@ -268,71 +340,6 @@ export default function ChatScreen() {
           </View>
         </View>
       </Modal>
-
-      {/* Messages */}
-      <FlatList
-        ref={flatListRef}
-        data={messages}
-        renderItem={renderItem}
-        keyExtractor={keyExtractor}
-        contentContainerStyle={styles.messageList}
-        onContentSizeChange={() =>
-          flatListRef.current?.scrollToEnd({ animated: true })
-        }
-        ListFooterComponent={isLoading ? <TypingIndicator /> : null}
-      />
-
-      {/* Input */}
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={100}
-      >
-        <View
-          style={[
-            styles.inputContainer,
-            { paddingBottom: Math.max(insets.bottom, 8) },
-          ]}
-        >
-          <View style={styles.inputWrapper}>
-            <TextInput
-              style={styles.input}
-              value={inputText}
-              onChangeText={setInputText}
-              placeholder="Ask anything or paste a URL..."
-              placeholderTextColor={theme.colors.textMuted}
-              multiline
-              maxLength={4000}
-              onSubmitEditing={Platform.OS !== "web" ? sendMessage : undefined}
-              onKeyPress={
-                Platform.OS === "web"
-                  ? (e) => {
-                      if (
-                        e.nativeEvent.key === "Enter" &&
-                        !e.nativeEvent.shiftKey
-                      ) {
-                        e.preventDefault();
-                        sendMessage();
-                      }
-                    }
-                  : undefined
-              }
-              returnKeyType="send"
-              editable={!isLoading}
-            />
-            <TouchableOpacity
-              style={[
-                styles.sendButton,
-                (!inputText.trim() || isLoading) && styles.sendButtonDisabled,
-              ]}
-              onPress={sendMessage}
-              disabled={!inputText.trim() || isLoading}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.sendIcon}>↑</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </KeyboardAvoidingView>
     </View>
   );
 }
@@ -342,192 +349,214 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: theme.colors.background,
   },
-  header: {
-    backgroundColor: theme.colors.surface,
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
+  headerOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 130,
+    backgroundColor: "rgba(12, 13, 22, 0.55)",
   },
-  headerContent: {
+  headerBar: {
+    paddingHorizontal: 18,
+    paddingTop: 2,
+    paddingBottom: 12,
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
   },
-  headerIcon: {
-    fontSize: 28,
-    marginRight: 12,
+  iconButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(53,52,57,0.4)",
   },
-  headerTitle: {
+  iconGlyph: {
+    color: theme.colors.primary,
     fontSize: 18,
     fontWeight: "700",
-    color: theme.colors.text,
   },
-  statusRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 2,
+  headerTitle: {
+    color: theme.colors.primary,
+    fontSize: 31,
+    fontWeight: "800",
+    letterSpacing: -0.5,
   },
-  statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginRight: 6,
-  },
-  statusText: {
-    fontSize: 12,
-    color: theme.colors.textSecondary,
+  timeMarker: {
+    textAlign: "center",
+    color: "rgba(199,196,215,0.42)",
+    textTransform: "uppercase",
+    letterSpacing: 2,
+    fontSize: 11,
+    marginBottom: 10,
   },
   providerRow: {
     flexDirection: "row",
-    marginTop: 12,
     gap: 8,
+    paddingHorizontal: 16,
+    marginBottom: 8,
   },
   providerChip: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    backgroundColor: theme.colors.surfaceHigh,
     borderRadius: 999,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    backgroundColor: theme.colors.surfaceLight,
+    paddingVertical: 7,
+    paddingHorizontal: 12,
   },
   providerChipSelected: {
-    borderColor: theme.colors.primary,
-    backgroundColor: theme.colors.primary,
+    backgroundColor: "rgba(64,239,183,0.2)",
   },
   providerChipText: {
     color: theme.colors.textSecondary,
     fontSize: 12,
+    fontWeight: "700",
+  },
+  providerChipTextActive: {
+    color: theme.colors.secondary,
+  },
+  messageList: {
+    paddingVertical: 8,
+    paddingBottom: 12,
+  },
+  chipRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    paddingHorizontal: 16,
+    marginBottom: 10,
+  },
+  researchChip: {
+    backgroundColor: theme.colors.surfaceHighest,
+    borderRadius: 999,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  researchChipText: {
+    color: theme.colors.textSecondary,
+    fontSize: 12,
     fontWeight: "600",
   },
-  providerChipTextSelected: {
-    color: "#FFF",
-  },
-  settingsChip: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 999,
+  composerWrap: {
+    marginHorizontal: 12,
+    marginBottom: 6,
+    borderRadius: 30,
+    backgroundColor: "rgba(53,52,57,0.6)",
     borderWidth: 1,
-    borderColor: theme.colors.border,
-    backgroundColor: theme.colors.surface,
+    borderColor: "rgba(70,69,84,0.45)",
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 8,
+    paddingTop: 8,
+    ...theme.shadows.ambient,
   },
-  settingsChipText: {
+  plusButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: theme.colors.surfaceContainer,
+  },
+  plusButtonText: {
+    color: theme.colors.textSecondary,
+    fontSize: 20,
+    lineHeight: 22,
+    fontWeight: "600",
+  },
+  inputShell: {
+    flex: 1,
+    marginHorizontal: 8,
+    maxHeight: 120,
+  },
+  input: {
     color: theme.colors.text,
-    fontSize: 12,
-    fontWeight: "700",
+    fontSize: 17,
+    lineHeight: 24,
+    paddingVertical: 10,
+  },
+  sendButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: theme.colors.primaryContainer,
+    marginBottom: 3,
+  },
+  sendButtonDisabled: {
+    opacity: 0.4,
+  },
+  sendGlyph: {
+    color: "#0d0096",
+    fontSize: 18,
+    marginLeft: 2,
+    fontWeight: "800",
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.55)",
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
     justifyContent: "center",
-    padding: 20,
+    padding: 16,
   },
   modalCard: {
-    backgroundColor: theme.colors.surface,
-    borderRadius: 16,
+    backgroundColor: theme.colors.surfaceContainer,
+    borderRadius: theme.radius.xl,
     padding: 16,
     borderWidth: 1,
     borderColor: theme.colors.border,
   },
   modalTitle: {
     color: theme.colors.text,
-    fontSize: 18,
-    fontWeight: "700",
-  },
-  modalSubtitle: {
-    color: theme.colors.textSecondary,
-    fontSize: 12,
-    marginTop: 6,
-    marginBottom: 14,
+    fontSize: 20,
+    fontWeight: "800",
+    marginBottom: 10,
   },
   fieldLabel: {
     color: theme.colors.textSecondary,
     fontSize: 12,
     marginBottom: 6,
+    marginTop: 4,
   },
   fieldInput: {
-    backgroundColor: theme.colors.surfaceLight,
+    backgroundColor: theme.colors.surfaceLow,
     borderWidth: 1,
     borderColor: theme.colors.border,
     borderRadius: 10,
     color: theme.colors.text,
     paddingHorizontal: 10,
     paddingVertical: 8,
-    marginBottom: 10,
+    marginBottom: 8,
     fontSize: 13,
   },
   modalActions: {
-    marginTop: 8,
+    marginTop: 12,
     flexDirection: "row",
     justifyContent: "flex-end",
     gap: 8,
   },
   modalSecondaryButton: {
     paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingVertical: 9,
     borderRadius: 10,
     borderWidth: 1,
     borderColor: theme.colors.border,
-    backgroundColor: theme.colors.surfaceLight,
+    backgroundColor: theme.colors.surfaceLow,
   },
   modalSecondaryButtonText: {
     color: theme.colors.textSecondary,
     fontSize: 13,
-    fontWeight: "600",
+    fontWeight: "700",
   },
   modalPrimaryButton: {
     paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingVertical: 9,
     borderRadius: 10,
-    backgroundColor: theme.colors.primary,
+    backgroundColor: theme.colors.primaryContainer,
   },
   modalPrimaryButtonText: {
-    color: "#FFF",
+    color: "#0d0096",
     fontSize: 13,
-    fontWeight: "700",
-  },
-  messageList: {
-    paddingVertical: 12,
-  },
-  inputContainer: {
-    backgroundColor: theme.colors.surface,
-    paddingHorizontal: 12,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: theme.colors.border,
-  },
-  inputWrapper: {
-    flexDirection: "row",
-    alignItems: "flex-end",
-    backgroundColor: theme.colors.surfaceLight,
-    borderRadius: theme.radius.xl,
-    paddingLeft: 16,
-    paddingRight: 4,
-    paddingVertical: 4,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  input: {
-    flex: 1,
-    color: theme.colors.text,
-    fontSize: 15,
-    maxHeight: 100,
-    paddingVertical: 10,
-  },
-  sendButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: theme.colors.primary,
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 2,
-  },
-  sendButtonDisabled: {
-    backgroundColor: theme.colors.surfaceGlass,
-  },
-  sendIcon: {
-    color: "#FFF",
-    fontSize: 18,
-    fontWeight: "700",
+    fontWeight: "800",
   },
 });

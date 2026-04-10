@@ -4,22 +4,6 @@ Polished Expo chatbot app with dual MCP integration and multi-model provider sup
 
 Repository: https://github.com/vicjeremy/chatbot-expo
 
-## Brief Compliance
-
-1. Minimum 2x MCP: met
-
-- MCP A (query data): mcp-server-fetch for webpage retrieval
-- MCP B (modify data): mcp-server-sqlite for notes CRUD
-
-2. Query MCP A and modify MCP B: met
-
-- Query: fetch_webpage tool
-- Modify: save_note, update_note, delete_note tools
-
-3. AI coding agent/workflow: met
-
-- Built and iterated using VS Code GitHub Copilot workflow
-
 ## Features
 
 - Chat with provider selection: Ollama, Gemini, Groq

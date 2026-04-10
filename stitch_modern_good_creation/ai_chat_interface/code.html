@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Curator AI | Research Assistant</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;family=Inter:wght@300;400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "tertiary-fixed": "#e8ddff",
+                        "on-primary-fixed-variant": "#2f2ebe",
+                        "tertiary": "#cebdff",
+                        "primary-fixed": "#e1e0ff",
+                        "on-primary-fixed": "#07006c",
+                        "background": "#131317",
+                        "surface-container": "#1f1f23",
+                        "surface-tint": "#c0c1ff",
+                        "on-surface": "#e4e1e7",
+                        "secondary-fixed": "#54fdc4",
+                        "surface-container-high": "#2a292e",
+                        "error-container": "#93000a",
+                        "primary": "#c0c1ff",
+                        "on-tertiary": "#381385",
+                        "tertiary-container": "#9b7fed",
+                        "on-error": "#690005",
+                        "on-primary-container": "#0d0096",
+                        "on-background": "#e4e1e7",
+                        "on-error-container": "#ffdad6",
+                        "on-secondary-container": "#00543d",
+                        "on-secondary": "#003827",
+                        "inverse-surface": "#e4e1e7",
+                        "surface-container-highest": "#353439",
+                        "secondary-container": "#00d29c",
+                        "surface-container-lowest": "#0e0e12",
+                        "on-tertiary-fixed": "#21005e",
+                        "on-primary": "#1000a9",
+                        "surface-container-low": "#1b1b1f",
+                        "inverse-on-surface": "#303034",
+                        "on-secondary-fixed": "#002116",
+                        "secondary": "#40efb7",
+                        "on-surface-variant": "#c7c4d7",
+                        "tertiary-fixed-dim": "#cebdff",
+                        "primary-fixed-dim": "#c0c1ff",
+                        "surface-variant": "#353439",
+                        "inverse-primary": "#494bd6",
+                        "surface-bright": "#39393d",
+                        "outline": "#908fa0",
+                        "surface-dim": "#131317",
+                        "on-tertiary-container": "#31057e",
+                        "on-tertiary-fixed-variant": "#4f319c",
+                        "primary-container": "#8083ff",
+                        "on-secondary-fixed-variant": "#00513b",
+                        "surface": "#131317",
+                        "secondary-fixed-dim": "#27e0a9",
+                        "outline-variant": "#464554",
+                        "error": "#ffb4ab"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "fontFamily": {
+                        "headline": ["Space Grotesk"],
+                        "body": ["Inter"],
+                        "label": ["Inter"]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; background-color: #131317; color: #e4e1e7; }
+        .glass-panel {
+            background: rgba(53, 52, 57, 0.6);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #353439; border-radius: 10px; }
+    </style>
+</head>
+<body class="flex h-screen overflow-hidden">
+<!-- SideNavBar (Shared Component) -->
+<aside class="hidden md:flex flex-col h-full w-64 bg-[#131317] p-4 gap-2 border-r border-transparent">
+<div class="flex items-center gap-3 mb-8 px-2">
+<div class="w-8 h-8 bg-gradient-to-br from-primary to-primary-container rounded-lg flex items-center justify-center">
+<span class="material-symbols-outlined text-on-primary text-sm" style="font-variation-settings: 'FILL' 1;">hub</span>
+</div>
+<div class="flex flex-col">
+<span class="text-lg font-bold text-[#c0c1ff] font-headline tracking-tight">The Curator</span>
+<span class="text-[10px] text-secondary font-medium tracking-widest uppercase">Intelligence Active</span>
+</div>
+</div>
+<button class="mb-6 flex items-center justify-center gap-2 bg-gradient-to-r from-primary to-primary-container text-on-primary-container font-bold py-3 px-4 rounded-xl translate-x-1 transition-transform">
+<span class="material-symbols-outlined text-xl">add</span>
+<span class="font-headline text-sm">New Research</span>
+</button>
+<nav class="flex flex-col gap-1 flex-1 overflow-y-auto">
+<div class="text-[10px] uppercase tracking-widest text-outline px-3 mb-2 font-bold">Research Ecosystem</div>
+<a class="flex items-center gap-3 px-3 py-2.5 bg-[#c0c1ff]/10 text-[#c0c1ff] rounded-xl transition-all duration-200" href="#">
+<span class="material-symbols-outlined">biotech</span>
+<span class="font-medium text-sm">Research Hub</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 text-[#c7c4d7] hover:bg-[#1c1c21] rounded-xl transition-all duration-200" href="#">
+<span class="material-symbols-outlined">database</span>
+<span class="font-medium text-sm">Knowledge Base</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 text-[#c7c4d7] hover:bg-[#1c1c21] rounded-xl transition-all duration-200" href="#">
+<span class="material-symbols-outlined">hub</span>
+<span class="font-medium text-sm">Neural Threads</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 text-[#c7c4d7] hover:bg-[#1c1c21] rounded-xl transition-all duration-200" href="#">
+<span class="material-symbols-outlined">history</span>
+<span class="font-medium text-sm">Archive</span>
+</a>
+<div class="mt-8 text-[10px] uppercase tracking-widest text-outline px-3 mb-2 font-bold">Recent Threads</div>
+<div class="flex flex-col gap-1">
+<div class="px-3 py-2 rounded-lg hover:bg-surface-container-high cursor-pointer transition-colors">
+<p class="text-xs text-on-surface-variant truncate">Quantum Encryption Methods</p>
+</div>
+<div class="px-3 py-2 rounded-lg hover:bg-surface-container-high cursor-pointer transition-colors">
+<p class="text-xs text-on-surface-variant truncate">Neural Plasticity in AI Models</p>
+</div>
+<div class="px-3 py-2 rounded-lg hover:bg-surface-container-high cursor-pointer transition-colors">
+<p class="text-xs text-on-surface-variant truncate">Ethical Frameworks for AGI</p>
+</div>
+</div>
+</nav>
+<div class="pt-4 mt-4 border-t border-outline-variant/20 flex flex-col gap-1">
+<a class="flex items-center gap-3 px-3 py-2 text-[#c7c4d7] hover:bg-[#c0c1ff]/5 transition-all duration-200" href="#">
+<span class="material-symbols-outlined">help_outline</span>
+<span class="font-medium text-sm">Help</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-[#c7c4d7] hover:bg-[#c0c1ff]/5 transition-all duration-200" href="#">
+<span class="material-symbols-outlined">shield</span>
+<span class="font-medium text-sm">Privacy</span>
+</a>
+<div class="flex items-center gap-3 px-3 py-4 mt-2">
+<img alt="User Profile" class="w-8 h-8 rounded-full border border-primary/20" data-alt="Portrait of a sophisticated young professional male with a neutral expression and clean background for user profile avatar" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBF7igsZhkVo8jaDjPA360OaksR3SPg-E4gEY-MyWWUgiD4O6x20JYovNvxw6W3MVOZo_jbfR7PTIIu_wq2FaTpejVVcCFQl3tVLjD_ZhdYnYSn-9ijoYIcFbHHdbUB8T4l7KaQIdDEulNqSBtqoywSKRLqetun8GfIgBZsHweXCbeXeEtDUrpgX9l4m6AeZiryd2_BW6-8hRT3Uq75UCKvNcGkmRS8F5eCA4PHNBXa2201a0jic6pwW3BYhsO9cEyzJdsnLFF1WTt0"/>
+<div class="flex flex-col overflow-hidden">
+<span class="text-xs font-bold text-on-surface truncate">Julian Sterling</span>
+<span class="text-[10px] text-outline truncate">Premium Access</span>
+</div>
+</div>
+</div>
+</aside>
+<!-- Main Chat Canvas -->
+<main class="flex-1 flex flex-col relative bg-surface-container-lowest">
+<!-- TopAppBar (Shared Component Logic) -->
+<header class="flex justify-between items-center w-full px-6 py-4 bg-gradient-to-b from-[#131317] to-transparent z-10 sticky top-0">
+<div class="flex items-center gap-4">
+<button class="md:hidden text-primary">
+<span class="material-symbols-outlined">menu</span>
+</button>
+<h1 class="font-['Space_Grotesk'] text-sm tracking-tight text-[#c0c1ff] font-bold">Neural Threads <span class="text-outline font-normal mx-2">/</span> Quantum Encryption</h1>
+</div>
+<div class="flex items-center gap-4">
+<div class="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-surface-container rounded-full border border-outline-variant/10">
+<span class="w-2 h-2 rounded-full bg-secondary shadow-[0_0_8px_#40efb7]"></span>
+<span class="text-[11px] font-medium text-on-surface-variant tracking-wide">SYSTEM NOMINAL</span>
+</div>
+<div class="flex items-center gap-3">
+<button class="text-[#c7c4d7] hover:text-[#c0c1ff] transition-colors duration-300 scale-95 active:scale-90 transition-transform">
+<span class="material-symbols-outlined">account_circle</span>
+</button>
+<button class="text-[#c7c4d7] hover:text-[#c0c1ff] transition-colors duration-300 scale-95 active:scale-90 transition-transform">
+<span class="material-symbols-outlined">settings</span>
+</button>
+</div>
+</div>
+</header>
+<!-- Message Area -->
+<section class="flex-1 overflow-y-auto px-6 py-8 space-y-12">
+<!-- System/Context Notification -->
+<div class="flex justify-center">
+<span class="px-4 py-1.5 bg-surface-container-low text-outline text-[10px] font-bold uppercase tracking-[0.2em] rounded-full">
+                    Thread Initialized: June 15, 2024
+                </span>
+</div>
+<!-- User Message -->
+<div class="flex flex-col items-end gap-2 max-w-2xl ml-auto">
+<div class="px-5 py-4 bg-surface-container-high rounded-2xl rounded-tr-none text-on-surface text-sm leading-relaxed shadow-sm">
+                    Can you analyze the recent breakthroughs in quantum-resistant encryption specifically for financial ledger systems? I'm interested in the lattice-based approach.
+                </div>
+<span class="text-[10px] text-outline font-medium mr-1 uppercase tracking-tighter">You • 10:42 AM</span>
+</div>
+<!-- AI Response -->
+<div class="flex flex-col items-start gap-4 max-w-3xl mr-auto">
+<div class="flex items-center gap-3 mb-1">
+<div class="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center border border-primary/20">
+<span class="material-symbols-outlined text-primary text-lg" style="font-variation-settings: 'FILL' 1;">auto_awesome</span>
+</div>
+<span class="text-sm font-headline font-bold text-primary tracking-tight">The Curator</span>
+</div>
+<!-- AI Glass Bubble -->
+<div class="glass-panel border border-outline-variant/10 rounded-3xl rounded-tl-none p-6 text-on-surface text-sm leading-relaxed space-y-4 shadow-xl">
+<p>I have synthesized the latest developments from NIST's Post-Quantum Cryptography (PQC) standardization process. Specifically regarding **lattice-based cryptography** (LBC), here are the core technical findings for financial systems:</p>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+<div class="p-4 bg-surface-container-highest/40 rounded-xl border border-outline-variant/5">
+<h4 class="text-secondary font-bold text-xs uppercase tracking-wider mb-2">Key Strength</h4>
+<p class="text-on-surface-variant text-xs leading-relaxed">LBC relies on the hardness of shortest vector problems, making it significantly more resilient than RSA against Shor's algorithm.</p>
+</div>
+<div class="p-4 bg-surface-container-highest/40 rounded-xl border border-outline-variant/5">
+<h4 class="text-tertiary font-bold text-xs uppercase tracking-wider mb-2">Network Latency</h4>
+<p class="text-on-surface-variant text-xs leading-relaxed">Lattice keys are larger, which may impact transaction throughput in high-frequency trading environments.</p>
+</div>
+</div>
+<p>Would you like me to simulate a migration path for a standard blockchain ledger to a CRYSTALS-Kyber implementation?</p>
+</div>
+<div class="flex gap-2">
+<button class="px-3 py-1.5 rounded-full bg-surface-container-low border border-outline-variant/10 text-[11px] text-on-surface-variant hover:border-primary/40 transition-colors flex items-center gap-2">
+<span class="material-symbols-outlined text-sm">content_copy</span> Copy
+                    </button>
+<button class="px-3 py-1.5 rounded-full bg-surface-container-low border border-outline-variant/10 text-[11px] text-on-surface-variant hover:border-primary/40 transition-colors flex items-center gap-2">
+<span class="material-symbols-outlined text-sm">refresh</span> Regenerate
+                    </button>
+</div>
+</div>
+<!-- User Message 2 -->
+<div class="flex flex-col items-end gap-2 max-w-2xl ml-auto">
+<div class="px-5 py-4 bg-surface-container-high rounded-2xl rounded-tr-none text-on-surface text-sm leading-relaxed">
+                    Yes, let's focus on the CRYSTALS-Kyber implementation. Can you also pull in any recent comparative data from the Ethereum Foundation's research on this?
+                </div>
+<span class="text-[10px] text-outline font-medium mr-1 uppercase tracking-tighter">You • 10:45 AM</span>
+</div>
+<!-- AI Thinking State -->
+<div class="flex items-start gap-4 max-w-3xl mr-auto">
+<div class="w-8 h-8 bg-secondary/10 rounded-lg flex items-center justify-center border border-secondary/20">
+<span class="material-symbols-outlined text-secondary text-lg animate-pulse" style="font-variation-settings: 'FILL' 1;">psychology</span>
+</div>
+<div class="flex items-center gap-2 py-2">
+<span class="text-xs text-on-surface-variant">The Curator is synthesizing research...</span>
+<div class="flex gap-1">
+<span class="w-1 h-1 bg-secondary rounded-full animate-bounce"></span>
+<span class="w-1 h-1 bg-secondary rounded-full animate-bounce [animation-delay:-0.15s]"></span>
+<span class="w-1 h-1 bg-secondary rounded-full animate-bounce [animation-delay:-0.3s]"></span>
+</div>
+</div>
+</div>
+</section>
+<!-- Input Section (Bottom Anchor) -->
+<footer class="p-6 bg-gradient-to-t from-[#131317] to-transparent">
+<div class="max-w-4xl mx-auto">
+<!-- Research Chips -->
+<div class="flex gap-2 mb-4 overflow-x-auto no-scrollbar pb-2">
+<button class="px-4 py-1.5 rounded-full bg-secondary-container text-on-secondary-container text-xs font-bold whitespace-nowrap">
+                        Compare Implementations
+                    </button>
+<button class="px-4 py-1.5 rounded-full bg-surface-container-highest text-on-surface-variant text-xs font-medium hover:bg-surface-variant transition-colors whitespace-nowrap">
+                        Cite Sources
+                    </button>
+<button class="px-4 py-1.5 rounded-full bg-surface-container-highest text-on-surface-variant text-xs font-medium hover:bg-surface-variant transition-colors whitespace-nowrap">
+                        Generate Diagram
+                    </button>
+<button class="px-4 py-1.5 rounded-full bg-surface-container-highest text-on-surface-variant text-xs font-medium hover:bg-surface-variant transition-colors whitespace-nowrap">
+                        Summary Report
+                    </button>
+</div>
+<div class="relative group">
+<div class="absolute -inset-0.5 bg-gradient-to-r from-primary/20 to-secondary/20 rounded-[1.6rem] blur opacity-30 group-focus-within:opacity-100 transition duration-500"></div>
+<div class="relative flex items-center bg-surface-container-low rounded-[1.5rem] p-2 pr-3 border border-outline-variant/10 shadow-2xl">
+<button class="p-3 text-outline hover:text-primary transition-colors flex items-center justify-center">
+<span class="material-symbols-outlined">add_circle</span>
+</button>
+<textarea class="flex-1 bg-transparent border-none focus:ring-0 text-on-surface text-sm py-3 px-2 resize-none placeholder:text-outline/60" placeholder="Ask The Curator anything..." rows="1"></textarea>
+<div class="flex items-center gap-1">
+<button class="p-2 text-outline hover:text-secondary transition-colors">
+<span class="material-symbols-outlined">mic</span>
+</button>
+<button class="w-10 h-10 bg-gradient-to-br from-primary to-primary-container text-on-primary-container rounded-xl flex items-center justify-center hover:shadow-[0_0_20px_rgba(192,193,255,0.3)] transition-all active:scale-95">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">send</span>
+</button>
+</div>
+</div>
+</div>
+<p class="text-center text-[10px] text-outline/50 mt-4 font-medium uppercase tracking-[0.1em]">
+                    Artificial Intelligence can hallucinate. Verify critical research.
+                </p>
+</div>
+</footer>
+</main>
+<!-- Context/Research Panel (Asymmetrical Layout Element) -->
+<aside class="hidden lg:flex flex-col w-80 bg-surface-container-lowest p-6 border-l border-outline-variant/5">
+<h3 class="font-headline font-bold text-sm text-tertiary mb-6 flex items-center gap-2">
+<span class="material-symbols-outlined text-lg">explore</span>
+            Research Intelligence
+        </h3>
+<div class="space-y-6">
+<!-- Source Card -->
+<div class="group cursor-pointer">
+<div class="relative aspect-video rounded-xl overflow-hidden mb-3 border border-outline-variant/10">
+<img alt="Lattice Research" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" data-alt="Abstract visualization of complex mathematical lattice structures with glowing blue and violet connections on a dark background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBTGYsqYudT2QAcnIW10bcWbCTblUiJIHjiulBUh8Uc7-5DYTcqxY0v4rIEbtlnFQGTyIQZ1QXMCbhpSRwnsS9OZKhFETIVIonWd-VviJQu4GsZCq0UiCjIck3LS5EtKtqSUw6WzTN1QiGPsObPHDJanAQt2gpTzyCG3tZEzwxT8K9qv7PX5671xZqHx1lWfwVi_quJDVN0KX0Z2Y3J4EED1Xyqz2eo_PoA-dkc9MwvPj8qCE374FiplR32hZDTs10RDARcTu-1pnsU"/>
+<div class="absolute inset-0 bg-gradient-to-t from-surface-dim to-transparent opacity-60"></div>
+<div class="absolute bottom-2 left-3 flex items-center gap-2">
+<span class="text-[10px] font-bold text-white bg-black/40 backdrop-blur-md px-2 py-0.5 rounded uppercase">Whitepaper</span>
+</div>
+</div>
+<h4 class="text-xs font-bold text-on-surface leading-tight group-hover:text-primary transition-colors">The Case for NIST PQC Standardization (2024 Update)</h4>
+<p class="text-[10px] text-outline mt-1 italic">Source: MIT Technology Review</p>
+</div>
+<!-- Dynamic Graph Concept -->
+<div class="p-4 bg-surface-container rounded-2xl border border-outline-variant/10">
+<div class="flex justify-between items-center mb-3">
+<span class="text-[10px] font-bold text-outline uppercase tracking-wider">Concept Map</span>
+<span class="material-symbols-outlined text-xs text-secondary">open_in_new</span>
+</div>
+<div class="flex flex-wrap gap-2">
+<span class="px-2 py-1 bg-[#40efb7]/10 text-secondary text-[10px] rounded-lg font-bold border border-[#40efb7]/20">Kyber-768</span>
+<span class="px-2 py-1 bg-[#c0c1ff]/10 text-primary text-[10px] rounded-lg font-bold border border-[#c0c1ff]/20">LWE Problem</span>
+<span class="px-2 py-1 bg-surface-container-highest text-outline text-[10px] rounded-lg font-bold">Dilithium</span>
+<span class="px-2 py-1 bg-[#cebdff]/10 text-tertiary text-[10px] rounded-lg font-bold border border-[#cebdff]/20">Shor's Algorithm</span>
+</div>
+</div>
+<!-- Activity Log -->
+<div class="space-y-4">
+<h4 class="text-[10px] font-bold text-outline uppercase tracking-[0.2em]">Live Analysis Flow</h4>
+<div class="relative pl-4 space-y-4 before:absolute before:left-0 before:top-2 before:bottom-2 before:w-[1px] before:bg-outline-variant/20">
+<div class="relative">
+<div class="absolute -left-[18px] top-1 w-2 h-2 rounded-full bg-secondary"></div>
+<p class="text-[11px] font-bold text-on-surface">Verified Ethereum PQC Specs</p>
+<p class="text-[10px] text-outline">EIP-4844 Compatibility check</p>
+</div>
+<div class="relative">
+<div class="absolute -left-[18px] top-1 w-2 h-2 rounded-full bg-outline-variant"></div>
+<p class="text-[11px] font-bold text-on-surface-variant">Scanning NIST Drafts</p>
+<p class="text-[10px] text-outline">Searching for FIPS 203 updates</p>
+</div>
+</div>
+</div>
+</div>
+</aside>
+</body></html>

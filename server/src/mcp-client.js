@@ -5,7 +5,9 @@ import path from "path";
 import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DB_PATH = path.resolve(__dirname, "..", "data", "notes.db");
+const DB_PATH =
+  process.env.SQLITE_DB_PATH ||
+  path.resolve(__dirname, "..", "data", "notes.db");
 
 class MCPClientManager {
   constructor() {
@@ -14,6 +16,7 @@ class MCPClientManager {
     this.fetchTransport = null;
     this.sqliteTransport = null;
     this.initialized = false;
+    this.dbPath = DB_PATH;
   }
 
   async initialize() {
@@ -63,6 +66,7 @@ class MCPClientManager {
         "✅ MCP B (SQLite) connected. Tools:",
         sqliteTools.tools.map((t) => t.name),
       );
+      console.log(`🗄️ SQLite DB path: ${this.dbPath}`);
     } catch (err) {
       console.error("❌ Failed to connect MCP B (SQLite):", err.message);
       this.sqliteClient = null;
@@ -221,6 +225,37 @@ class MCPClientManager {
     return [];
   }
 
+  escapeSqlLiteral(value) {
+    return String(value ?? "").replace(/'/g, "''");
+  }
+
+  isUuidLike(value) {
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      String(value || "").trim(),
+    );
+  }
+
+  async runReadQuery(query) {
+    const result = await this.sqliteClient.callTool({
+      name: "read_query",
+      arguments: { query },
+    });
+
+    const textContent = result.content
+      .filter((c) => c.type === "text")
+      .map((c) => c.text)
+      .join("\n");
+
+    return this.parseSqliteRows(textContent);
+  }
+
+  async runWriteQuery(query) {
+    await this.sqliteClient.callTool({
+      name: "write_query",
+      arguments: { query },
+    });
+  }
+
   // --- MCP A Operations (READ) ---
 
   async fetchWebPage(url) {
@@ -281,59 +316,105 @@ class MCPClientManager {
     if (!this.sqliteClient)
       throw new Error("SQLite MCP client not initialized");
 
-    const result = await this.sqliteClient.callTool({
-      name: "read_query",
-      arguments: {
-        query:
-          "SELECT id, title, content, source_url, created_at FROM notes ORDER BY created_at DESC",
-      },
-    });
-
-    const textContent = result.content
-      .filter((c) => c.type === "text")
-      .map((c) => c.text)
-      .join("\n");
-
-    return this.parseSqliteRows(textContent);
+    return this.runReadQuery(
+      "SELECT id, title, content, source_url, created_at FROM notes ORDER BY created_at DESC",
+    );
   }
 
   async searchNotes(keyword) {
     if (!this.sqliteClient)
       throw new Error("SQLite MCP client not initialized");
 
-    const escapedKeyword = keyword.replace(/'/g, "''");
+    const escapedKeyword = this.escapeSqlLiteral(keyword);
 
-    const result = await this.sqliteClient.callTool({
-      name: "read_query",
-      arguments: {
-        query: `SELECT id, title, content, source_url, created_at FROM notes
+    return this
+      .runReadQuery(`SELECT id, title, content, source_url, created_at FROM notes
                 WHERE title LIKE '%${escapedKeyword}%' OR content LIKE '%${escapedKeyword}%'
-                ORDER BY created_at DESC`,
-      },
-    });
-
-    const textContent = result.content
-      .filter((c) => c.type === "text")
-      .map((c) => c.text)
-      .join("\n");
-
-    return this.parseSqliteRows(textContent);
+                ORDER BY created_at DESC`);
   }
 
-  async deleteNote(id) {
+  async deleteNote(identifier) {
     if (!this.sqliteClient)
       throw new Error("SQLite MCP client not initialized");
 
-    const escapedId = id.replace(/'/g, "''");
+    const rawIdentifier = String(identifier || "").trim();
+    if (!rawIdentifier) {
+      return {
+        deleted: false,
+        reason: "Note identifier is required",
+      };
+    }
 
-    await this.sqliteClient.callTool({
-      name: "write_query",
-      arguments: {
-        query: `DELETE FROM notes WHERE id = '${escapedId}'`,
-      },
-    });
+    const escapedIdentifier = this.escapeSqlLiteral(rawIdentifier);
+    let matches = [];
 
-    return { deleted: true, id };
+    if (this.isUuidLike(rawIdentifier)) {
+      matches = await this.runReadQuery(`SELECT id, title FROM notes
+                 WHERE id = '${escapedIdentifier}'
+                 LIMIT 1`);
+    } else {
+      const exactMatches = await this.runReadQuery(`SELECT id, title FROM notes
+                   WHERE lower(title) = lower('${escapedIdentifier}')
+                   ORDER BY created_at DESC`);
+
+      if (exactMatches.length > 0) {
+        matches = exactMatches;
+      } else {
+        const partialMatches = await this
+          .runReadQuery(`SELECT id, title FROM notes
+                     WHERE title LIKE '%${escapedIdentifier}%'
+                     ORDER BY created_at DESC
+                     LIMIT 5`);
+        matches = partialMatches;
+      }
+    }
+
+    if (matches.length === 0) {
+      return {
+        deleted: false,
+        reason: "No matching note found",
+        identifier: rawIdentifier,
+      };
+    }
+
+    if (matches.length > 1 && !this.isUuidLike(rawIdentifier)) {
+      return {
+        deleted: false,
+        reason: "Multiple notes matched. Please use a note id.",
+        identifier: rawIdentifier,
+        matches: matches.map((row) => ({ id: row.id, title: row.title })),
+      };
+    }
+
+    const targetId = matches[0]?.id;
+    if (!targetId) {
+      return {
+        deleted: false,
+        reason: "Matched note has no id",
+        identifier: rawIdentifier,
+      };
+    }
+
+    const escapedTargetId = this.escapeSqlLiteral(targetId);
+
+    await this.runWriteQuery(
+      `DELETE FROM notes WHERE id = '${escapedTargetId}'`,
+    );
+
+    // Verify deletion using listNotes() because its parsing path is already
+    // exercised by frontend notes rendering and is more reliable than ad-hoc
+    // single-row query parsing variations from MCP output.
+    const notesAfterDelete = await this.listNotes();
+    const deleted = !notesAfterDelete.some((row) => row.id === targetId);
+
+    return {
+      deleted,
+      identifier: rawIdentifier,
+      id: targetId,
+      title: matches[0]?.title || null,
+      deletedCount: deleted ? 1 : 0,
+      reason: deleted ? null : "Delete query did not remove the record",
+    };
   }
 
   async updateNote(id, title, content) {
@@ -380,7 +461,15 @@ class MCPClientManager {
       case "search_notes":
         return await this.searchNotes(args.keyword);
       case "delete_note":
-        return JSON.stringify(await this.deleteNote(args.id));
+        return JSON.stringify(
+          await this.deleteNote(
+            args.id ||
+              args.note_id ||
+              args.noteId ||
+              args.title ||
+              args.keyword,
+          ),
+        );
       case "update_note":
         return JSON.stringify(
           await this.updateNote(args.id, args.title, args.content),

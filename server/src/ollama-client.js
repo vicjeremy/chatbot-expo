@@ -94,7 +94,94 @@ class AIClient {
     }
   }
 
+  parseToolResult(result) {
+    if (result === null || result === undefined) return null;
+    if (typeof result === "object") return result;
+    if (typeof result === "string") {
+      try {
+        return JSON.parse(result);
+      } catch {
+        return result;
+      }
+    }
+    return result;
+  }
+
+  buildDirectNoteReply(userMessage, toolOutcomes = []) {
+    if (!Array.isArray(toolOutcomes) || toolOutcomes.length === 0) return null;
+
+    const deleteOutcome = toolOutcomes.find((o) => o.name === "delete_note");
+    if (deleteOutcome) {
+      if (deleteOutcome.error) {
+        return `I couldn't delete that note: ${deleteOutcome.error}`;
+      }
+
+      if (deleteOutcome.parsed?.deleted) {
+        const title = deleteOutcome.parsed?.title;
+        return title
+          ? `Done. The note \"${title}\" was deleted successfully.`
+          : "Done. The note was deleted successfully.";
+      }
+
+      if (deleteOutcome.parsed?.deleted === false) {
+        const reason =
+          deleteOutcome.parsed?.reason || "No matching note was deleted.";
+        const matches = Array.isArray(deleteOutcome.parsed?.matches)
+          ? deleteOutcome.parsed.matches
+          : [];
+
+        if (matches.length > 0) {
+          const suggestion = matches
+            .slice(0, 3)
+            .map((m) => `- ${m.title} (id: ${m.id})`)
+            .join("\n");
+          return `${reason}\n\nPlease choose one of these note IDs:\n${suggestion}`;
+        }
+
+        return `I couldn't delete that note: ${reason}`;
+      }
+    }
+
+    const updateOutcome = toolOutcomes.find((o) => o.name === "update_note");
+    if (updateOutcome) {
+      if (updateOutcome.error) {
+        return `I couldn't update that note: ${updateOutcome.error}`;
+      }
+
+      if (updateOutcome.parsed?.updated) {
+        return "Done. The note was updated successfully.";
+      }
+    }
+
+    const saveOutcome = toolOutcomes.find((o) => o.name === "save_note");
+    if (saveOutcome) {
+      if (saveOutcome.error) {
+        return `I couldn't save that note: ${saveOutcome.error}`;
+      }
+
+      if (saveOutcome.parsed?.id || saveOutcome.parsed?.title) {
+        const title = saveOutcome.parsed?.title || "your note";
+        return `Saved successfully: ${title}.`;
+      }
+    }
+
+    const lower = String(userMessage || "").toLowerCase();
+    const isListIntent =
+      /\b(list|show|view)\b/.test(lower) && /\b(note|notes)\b/.test(lower);
+    const listOutcome = toolOutcomes.find((o) => o.name === "list_notes");
+    if (isListIntent && listOutcome && Array.isArray(listOutcome.parsed)) {
+      if (listOutcome.parsed.length === 0) {
+        return "You don't have any saved notes yet.";
+      }
+      return null;
+    }
+
+    return null;
+  }
+
   async executeToolCalls(toolCalls, messages, provider = "ollama") {
+    const outcomes = [];
+
     for (const tool of toolCalls) {
       const name = tool?.function?.name;
       const args = this.parseToolArgs(tool?.function?.arguments);
@@ -106,12 +193,22 @@ class AIClient {
       console.log(`🔧 Tool call: ${name}(${JSON.stringify(args)})`);
 
       let toolResult;
+      let toolError = null;
       try {
         toolResult = await mcpManager.executeTool(name, args || {});
       } catch (err) {
         console.error(`❌ Tool error (${name}):`, err.message);
+        toolError = err.message;
         toolResult = JSON.stringify({ error: err.message });
       }
+
+      const parsed = this.parseToolResult(toolResult);
+      outcomes.push({
+        name,
+        args,
+        parsed,
+        error: toolError || parsed?.error || null,
+      });
 
       const toolContent = this.toToolContent(toolResult);
       console.log(
@@ -134,6 +231,8 @@ class AIClient {
         });
       }
     }
+
+    return outcomes;
   }
 
   async chatWithRuntimeConfig(
@@ -212,11 +311,19 @@ class AIClient {
         );
       }
 
-      await this.executeToolCalls(
+      const toolOutcomes = await this.executeToolCalls(
         response.message.tool_calls,
         messages,
         "ollama",
       );
+
+      const directNoteReply = this.buildDirectNoteReply(
+        userMessage,
+        toolOutcomes,
+      );
+      if (directNoteReply) {
+        return directNoteReply;
+      }
 
       // Force a final response without tool declarations to prevent tool-call loops.
       const finalResponse = await this.ollama.chat({
@@ -276,11 +383,19 @@ class AIClient {
         );
       }
 
-      await this.executeToolCalls(
+      const toolOutcomes = await this.executeToolCalls(
         assistantMessage.tool_calls,
         messages,
         config.provider,
       );
+
+      const directNoteReply = this.buildDirectNoteReply(
+        userMessage,
+        toolOutcomes,
+      );
+      if (directNoteReply) {
+        return directNoteReply;
+      }
 
       const finalResponse = await this.callOpenAICompatible(
         config,

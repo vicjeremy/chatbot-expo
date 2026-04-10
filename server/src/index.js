@@ -52,6 +52,7 @@ app.get("/api/health", (req, res) => {
     status: "ok",
     timestamp: new Date().toISOString(),
     mcpInitialized: mcpManager.initialized,
+    dbPath: mcpManager.dbPath,
   });
 });
 
@@ -123,6 +124,12 @@ app.delete("/api/notes/:id", apiLimiter, async (req, res) => {
     if (!id) return res.status(400).json({ error: "Note ID is required." });
 
     const result = await mcpManager.deleteNote(id);
+    if (!result?.deleted) {
+      return res.status(404).json({
+        error: result?.reason || "Note not found.",
+        details: result,
+      });
+    }
     res.json(result);
   } catch (err) {
     console.error("❌ Delete note error:", err);

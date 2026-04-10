@@ -68,7 +68,7 @@ export const toolDefinitions = [
   {
     name: "delete_note",
     description:
-      "Delete a saved note by its ID. Use this when the user asks to remove or delete a specific note.",
+      "Delete a saved note by its ID or title. Use this when the user asks to remove or delete a specific note.",
     parameters: {
       type: "object",
       properties: {
@@ -76,8 +76,13 @@ export const toolDefinitions = [
           type: "string",
           description: "The ID of the note to delete",
         },
+        title: {
+          type: "string",
+          description:
+            "Optional note title to delete when the ID is not provided",
+        },
       },
-      required: ["id"],
+      required: [],
     },
   },
   {
