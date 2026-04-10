@@ -44,8 +44,10 @@ class ApiService {
 
   async request(path, options = {}) {
     let lastError = null;
+    const attempted = [];
 
     for (const base of this.baseUrls) {
+      attempted.push(base);
       try {
         const response = await fetch(`${base}${path}`, options);
         this.baseUrl = base;
@@ -55,7 +57,15 @@ class ApiService {
       }
     }
 
-    throw lastError || new Error("Network request failed");
+    const details =
+      attempted.length > 0 ? ` Tried: ${attempted.join(", ")}.` : "";
+    const message =
+      `Network request failed.${details} ` +
+      "If this is an APK build, set EXPO_PUBLIC_API_URL in the matching EAS environment/profile.";
+
+    throw lastError
+      ? new Error(`${message} Root cause: ${lastError.message || "unknown"}`)
+      : new Error(message);
   }
 
   async sendMessage(

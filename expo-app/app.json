@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "expo-app",
-    "slug": "expo-app",
+    "slug": "chatbot-expo",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -20,10 +20,17 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "package": "com.vicjeremysorganization.chatbotexpo"
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "3d1c1661-727f-43ce-bde9-6057c7b7641d"
+      }
+    },
+    "owner": "vicjeremys-organization"
   }
 }
